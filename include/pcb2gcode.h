@@ -1,23 +1,39 @@
 #ifndef PCB2GCODE_H
 #define PCB2GCODE_H
 
-#include <QMainWindow>
+#include <QWidget>
+#include <QFileDialog>
+#include <QPushButton>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QCheckBox>
 
-QT_BEGIN_NAMESPACE
+#include "include/GerberFileManager.h"
+#include "include/settings.h"
+
 namespace Ui {
 class PCB2Gcode;
 }
-QT_END_NAMESPACE
 
-class PCB2Gcode : public QMainWindow
+class PCB2Gcode : public QWidget
 {
     Q_OBJECT
 
 public:
-    PCB2Gcode(QWidget *parent = nullptr);
+    explicit PCB2Gcode(QWidget *parent = nullptr);
     ~PCB2Gcode();
+
+private slots:
+    void onBrowseButtonLayerClicked();
+    void onBrowseButtonDrillClicked();
+    void onGenerate();
+    void onPreview();
 
 private:
     Ui::PCB2Gcode *ui;
+    GCodeFileManager gcodeManager;
+    Settings appSettings;
 };
+
 #endif // PCB2GCODE_H
