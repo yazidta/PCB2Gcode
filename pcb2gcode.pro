@@ -9,8 +9,8 @@ TEMPLATE = app
 # Source, header, and UI file locations
 SOURCES += \
     src/GerberFileManager.cpp \
-    src/PCB2Gcode.cpp \
     src/main.cpp \
+    src/pcb2gcode.cpp \
     src/settings.cpp
 
 HEADERS += \

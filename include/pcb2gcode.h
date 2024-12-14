@@ -8,7 +8,8 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QCheckBox>
-
+#include <QMainWindow>
+#include <QTabWidget>
 #include "include/GerberFileManager.h"
 #include "include/settings.h"
 
@@ -16,7 +17,7 @@ namespace Ui {
 class PCB2Gcode;
 }
 
-class PCB2Gcode : public QWidget
+class PCB2Gcode : public QMainWindow
 {
     Q_OBJECT
 
@@ -30,10 +31,15 @@ private slots:
     void onGenerate();
     void onPreview();
 
+
 private:
     Ui::PCB2Gcode *ui;
-    GCodeFileManager gcodeManager;
+    GerberFileManager gerberManager;
     Settings appSettings;
+
+    QTabWidget* tabWidget;
+    void connectSignals();
+    void setupFirstTab();
 };
 
 #endif // PCB2GCODE_H

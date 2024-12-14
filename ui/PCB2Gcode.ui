@@ -1,282 +1,256 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>PCB2Gcode</class>
- <widget class="QWidget" name="PCB2Gcode">
+ <widget class="QMainWindow" name="PCB2Gcode">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
-    <height>400</height>
+    <width>1080</width>
+    <height>480</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1080</width>
+    <height>480</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>PCB GCode Converter - Flying Probe Tester</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-
-   <!-- Header -->
-   <item>
-    <widget class="QLabel" name="titleLabel">
-     <property name="text">
-      <string>Flying Probe Tester - PCB GCode Converter</string>
-     </property>
-     <property name="styleSheet">
-      <string>
-       font: bold 18pt; color: #2E2E2E; text-align: center;
-      </string>
-     </property>
-    </widget>
-   </item>
-
-   <!-- Gerber Layer Input -->
-   <item>
-    <layout class="QFormLayout" name="formLayoutLayer">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelLayer">
-       <property name="text">
-        <string>Gerber Layer:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <layout class="QHBoxLayout" name="horizontalLayoutLayer">
-       <item>
-        <widget class="QLineEdit" name="firstLayer"/>
-       </item>
-       <item>
-        <widget class="QPushButton" name="browseButtonLayer">
-         <property name="text">
-          <string>Browse</string>
-         </property>
-         <property name="styleSheet">
-          <string>
-           background-color: #4CAF50; color: white; border-radius: 5px;
-           min-width: 110px; min-height: 35px; font-size: 12pt;
-          </string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Mirror Selection -->
-   <item>
-    <layout class="QFormLayout" name="formLayoutMirror">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelMirror">
-       <property name="text">
-        <string>Mirror:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QComboBox" name="firstMirror">
-       <item>
-        <property name="text">
-         <string>No Mirror</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Vertical</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Horizontal</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Both</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Drill File Input -->
-   <item>
-    <layout class="QFormLayout" name="formLayoutDrill">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelDrill">
-       <property name="text">
-        <string>Drill File:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <layout class="QHBoxLayout" name="horizontalLayoutDrill">
-       <item>
-        <widget class="QLineEdit" name="drillPath"/>
-       </item>
-       <item>
-        <widget class="QPushButton" name="browseButtonDrill">
-         <property name="text">
-          <string>Browse</string>
-         </property>
-         <property name="styleSheet">
-          <string>
-           background-color: #4CAF50; color: white; border-radius: 5px;
-           min-width: 110px; min-height: 35px; font-size: 12pt;
-          </string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Probe Diameter -->
-   <item>
-    <layout class="QFormLayout" name="formLayoutProbe">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelProbe">
-       <property name="text">
-        <string>Probe Diameter:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QDoubleSpinBox" name="probeDiameter">
-       <property name="suffix">
-        <string> mm</string>
-       </property>
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="minimum">
-        <double>0.001</double>
-       </property>
-       <property name="maximum">
-        <double>10.0</double>
-       </property>
-       <property name="value">
-        <double>0.1</double>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Board Offset -->
-   <item>
-    <layout class="QFormLayout" name="formLayoutOffset">
-     <item row="0" column="0">
-      <widget class="QLabel" name="labelOffset">
-       <property name="text">
-        <string>Board Offset:</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QDoubleSpinBox" name="boardOffset">
-       <property name="suffix">
-        <string> mm</string>
-       </property>
-       <property name="decimals">
-        <number>3</number>
-       </property>
-       <property name="maximum">
-        <double>100.0</double>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Options Group -->
-   <item>
-    <widget class="QGroupBox" name="optionsGroup">
-     <property name="title">
-      <string>Options</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayoutOptions">
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+     <layout class="QHBoxLayout" name="buttonLayout">
       <item>
-       <widget class="QCheckBox" name="showEdgesCheck">
-        <property name="text">
-         <string>Show Board Edges</string>
+       <widget class="QTabWidget" name="tabWidget">
+        <property name="currentIndex">
+         <number>0</number>
         </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
+        <widget class="QWidget" name="gcodeTab">
+         <attribute name="title">
+          <string>Generate Gcode</string>
+         </attribute>
+         <widget class="QGroupBox" name="copperLayerGroup">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>482</width>
+            <height>69</height>
+           </rect>
+          </property>
+          <property name="title">
+           <string>Copper Layer Settings</string>
+          </property>
+          <layout class="QVBoxLayout" name="copperLayout">
+           <item>
+            <layout class="QHBoxLayout" name="layerLayout">
+             <item>
+              <widget class="QLineEdit" name="firstLayer">
+               <property name="placeholderText">
+                <string>Gerber File Path</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="browseButtonLayer">
+               <property name="text">
+                <string>Browse</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QGroupBox" name="drillFileGroup">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>80</y>
+            <width>482</width>
+            <height>69</height>
+           </rect>
+          </property>
+          <property name="title">
+           <string>Drill File Settings</string>
+          </property>
+          <layout class="QVBoxLayout" name="drillLayout">
+           <item>
+            <layout class="QHBoxLayout" name="drillFileLayout">
+             <item>
+              <widget class="QLineEdit" name="drillPath">
+               <property name="placeholderText">
+                <string>Drill File Path</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="browseButtonDrill">
+               <property name="text">
+                <string>Browse</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QGroupBox" name="configGroup">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>150</y>
+            <width>482</width>
+            <height>223</height>
+           </rect>
+          </property>
+          <property name="title">
+           <string>Configuration Settings</string>
+          </property>
+          <layout class="QVBoxLayout" name="configLayout">
+           <item>
+            <widget class="QLabel" name="mirrorLabel">
+             <property name="text">
+              <string>Mirror Options:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="firstMirror">
+             <item>
+              <property name="text">
+               <string>No Mirror</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Mirror X</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Mirror Y</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="probeLabel">
+             <property name="text">
+              <string>Probe Diameter (mm):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="probeDiameter">
+             <property name="minimum">
+              <double>0.100000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>10.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.500000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="offsetLabel">
+             <property name="text">
+              <string>Board Offset (mm):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="boardOffset">
+             <property name="minimum">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="showEdgesCheck">
+             <property name="text">
+              <string>Show Board Edges</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QPushButton" name="previewButton">
+          <property name="geometry">
+           <rect>
+            <x>290</x>
+            <y>390</y>
+            <width>191</width>
+            <height>21</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Preview</string>
+          </property>
+         </widget>
+         <widget class="QPushButton" name="generateButton">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>390</y>
+            <width>200</width>
+            <height>24</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Generate</string>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QWidget" name="DriverTab">
+         <attribute name="title">
+          <string>Driver Configuration</string>
+         </attribute>
+         <widget class="QWidget" name="horizontalLayoutWidget">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>371</width>
+            <height>71</height>
+           </rect>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="label">
+             <property name="text">
+              <string>Serial Port:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="comPortcomboBox"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="connectionButton">
+             <property name="text">
+              <string>Connect</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </widget>
        </widget>
       </item>
      </layout>
-    </widget>
-   </item>
-
-   <!-- Action Buttons -->
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayoutActions">
-     <item>
-      <widget class="QPushButton" name="generateButton">
-       <property name="text">
-        <string>Generate</string>
-       </property>
-       <property name="styleSheet">
-        <string>
-         background-color: #4CAF50; color: white; border-radius: 5px;
-         min-width: 130px; min-height: 40px; font-size: 14pt;
-        </string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="previewButton">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="text">
-        <string>Preview</string>
-       </property>
-       <property name="styleSheet">
-        <string>
-         background-color: #FF9800; color: white; border-radius: 5px;
-         min-width: 130px; min-height: 40px; font-size: 14pt;
-        </string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="exitButton">
-       <property name="text">
-        <string>Exit</string>
-       </property>
-       <property name="styleSheet">
-        <string>
-         background-color: #F44336; color: white; border-radius: 5px;
-         min-width: 130px; min-height: 40px; font-size: 14pt;
-        </string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-
-   <!-- Status Label -->
-   <item>
-    <widget class="QLabel" name="statusLabel"/>
-   </item>
-
-  </layout>
+    </item>
+   </layout>
+  </widget>
  </widget>
+ <resources/>
+ <connections/>
 </ui>

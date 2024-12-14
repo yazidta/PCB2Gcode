@@ -3,15 +3,17 @@
 
 #include <QString>
 
-class GCodeFileManager
+class GerberFileManager
 {
 public:
-    GCodeFileManager();
-    bool loadGCodeFile(const QString &filePath);
+    GerberFileManager();
+    bool loadGerberFile(const QString &filePath);
     bool saveGCodeFile(const QString &filePath, const QString &gCodeContent);
-
+    QStringList extractTestPoints() const;
+    QString generateGCodeForTestPoints(const QStringList &testPoints) const;
 private:
-    QString gCodeData;  // Stores the loaded G-code data
+    QString gerberData;
+
 };
 
 #endif // GCODEFILEMANAGER_H
