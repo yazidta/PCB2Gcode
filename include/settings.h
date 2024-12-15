@@ -18,6 +18,7 @@ public:
 private:
     QString gerberLayerPath;
     QString drillFilePath;
+
 };
 
 #endif // SETTINGS_H

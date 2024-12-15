@@ -36,13 +36,13 @@
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>0</y>
+            <y>70</y>
             <width>482</width>
             <height>69</height>
            </rect>
           </property>
           <property name="title">
-           <string>Copper Layer Settings</string>
+           <string>Import Copper Layer File</string>
           </property>
           <layout class="QVBoxLayout" name="copperLayout">
            <item>
@@ -69,13 +69,13 @@
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>80</y>
+            <y>140</y>
             <width>482</width>
             <height>69</height>
            </rect>
           </property>
           <property name="title">
-           <string>Drill File Settings</string>
+           <string>Import Drill File</string>
           </property>
           <layout class="QVBoxLayout" name="drillLayout">
            <item>
@@ -102,41 +102,15 @@
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>150</y>
+            <y>212</y>
             <width>482</width>
-            <height>223</height>
+            <height>161</height>
            </rect>
           </property>
           <property name="title">
            <string>Configuration Settings</string>
           </property>
           <layout class="QVBoxLayout" name="configLayout">
-           <item>
-            <widget class="QLabel" name="mirrorLabel">
-             <property name="text">
-              <string>Mirror Options:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QComboBox" name="firstMirror">
-             <item>
-              <property name="text">
-               <string>No Mirror</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Mirror X</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Mirror Y</string>
-              </property>
-             </item>
-            </widget>
-           </item>
            <item>
             <widget class="QLabel" name="probeLabel">
              <property name="text">
@@ -209,6 +183,42 @@
            <string>Generate</string>
           </property>
          </widget>
+         <widget class="QGroupBox" name="drillFileGroup_2">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>482</width>
+            <height>69</height>
+           </rect>
+          </property>
+          <property name="title">
+           <string>Import Test Points</string>
+          </property>
+          <layout class="QVBoxLayout" name="drillLayout_2">
+           <item>
+            <layout class="QHBoxLayout" name="drillFileLayout_2">
+             <item>
+              <widget class="QLineEdit" name="testPointsPath">
+               <property name="text">
+                <string/>
+               </property>
+               <property name="placeholderText">
+                <string>Test Points File Path</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="testPointsButton">
+               <property name="text">
+                <string>Browse</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
         </widget>
         <widget class="QWidget" name="DriverTab">
          <attribute name="title">
@@ -219,27 +229,63 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>371</width>
-            <height>71</height>
+            <width>251</width>
+            <height>61</height>
            </rect>
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
             <widget class="QLabel" name="label">
+             <property name="maximumSize">
+              <size>
+               <width>60</width>
+               <height>16777215</height>
+              </size>
+             </property>
              <property name="text">
               <string>Serial Port:</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QComboBox" name="comPortcomboBox"/>
-           </item>
-           <item>
-            <widget class="QPushButton" name="connectionButton">
-             <property name="text">
-              <string>Connect</string>
+            <widget class="QComboBox" name="comPortcomboBox">
+             <property name="maximumSize">
+              <size>
+               <width>90</width>
+               <height>16777215</height>
+              </size>
              </property>
             </widget>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="verticalLayout">
+             <item>
+              <widget class="QPushButton" name="connectionButton">
+               <property name="maximumSize">
+                <size>
+                 <width>75</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Connect</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="refreshButton">
+               <property name="maximumSize">
+                <size>
+                 <width>75</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Refresh</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
           </layout>
          </widget>
