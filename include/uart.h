@@ -21,7 +21,7 @@ public:
     bool isConnected() const;
     void sendData(const QByteArray &data);
 
-signals:
+Q_SIGNALS:
     void connectionStatusChanged(bool Connected);
     void dataReceived(const QByteArray &data);
 

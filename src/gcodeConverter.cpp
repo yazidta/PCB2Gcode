@@ -1,10 +1,12 @@
 #include "include/gcodeConverter.h"
+
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
 
 GCodeConverter::GCodeConverter()
 {
+
 }
 
 bool GCodeConverter::loadCSVFile(const QString &filePath)

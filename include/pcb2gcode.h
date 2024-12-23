@@ -1,19 +1,25 @@
 #ifndef PCB2GCODE_H
 #define PCB2GCODE_H
 
+#include "include/gcodeConverter.h"
+#include "include/gerbermanager.h"
+#include "include/settings.h"
+#include "include/uart.h"
+
 #include <QWidget>
-#include <QFileDialog>
+#include <QPixmap>
 #include <QPushButton>
 #include <QLineEdit>
-#include <QComboBox>
+#include <QMessageBox>
 #include <QDoubleSpinBox>
 #include <QCheckBox>
 #include <QMainWindow>
 #include <QTabWidget>
-#include "include/gcodeConverter.h"
-#include "include/GerberFileManager.h"
-#include "include/settings.h"
-#include "include/uart.h"
+#include <QObject>
+#include <QFileDialog>
+
+
+
 
 namespace Ui {
 class PCB2Gcode;
@@ -27,11 +33,13 @@ public:
     explicit PCB2Gcode(QWidget *parent = nullptr);
     ~PCB2Gcode();
 
-private slots:
+private Q_SLOTS:
     // Gcode Converter Tab
     void onBrowseButtonTestPointsClicked();
     void onBrowseButtonLayerClicked();
-    void onBrowseButtonDrillClicked();
+    void onBrowseButtonMaskClicked();
+    void onBrowseButtonSilkClicked();
+    void onBrowseButtonBoardClicked();
     void onGenerate();
     void onPreview();
 
@@ -39,12 +47,12 @@ private slots:
 
 private:
     Ui::PCB2Gcode *ui;
-    GerberFileManager gerberManager;
     GCodeConverter gcodeConverter;
     Settings appSettings;
     UART *uart;
-
     QTabWidget* tabWidget;
+    GerberManager gerberManager;
+
     void connectSignals();
     void setupFirstTab();
     void initUART();

@@ -1,15 +1,14 @@
 #include "include/pcb2gcode.h"
 #include "ui_PCB2Gcode.h"
-#include <QMessageBox>
-#include <QApplication>
 
-PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this))
+
+
+PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this)), gerberManager()
 {
     ui->setupUi(this);
 
     initUART();
     connectSignals();
-
 
 }
 
@@ -24,8 +23,11 @@ void PCB2Gcode::setupFirstTab()
     mainLayout->addWidget(ui->firstLayer);
     mainLayout->addWidget(ui->browseButtonLayer);
 
-    mainLayout->addWidget(ui->drillPath);
-    mainLayout->addWidget(ui->browseButtonDrill);
+    mainLayout->addWidget(ui->silkPath);
+    mainLayout->addWidget(ui->browseButtonSilk);
+
+    mainLayout->addWidget(ui->boardPath);
+    mainLayout->addWidget(ui->browseButtonBoard);
 
     mainLayout->addWidget(ui->probeDiameter);
     mainLayout->addWidget(ui->boardOffset);
@@ -48,7 +50,11 @@ void PCB2Gcode::connectSignals()
 
     connect(ui->browseButtonLayer, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonLayerClicked);
 
-    connect(ui->browseButtonDrill, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonDrillClicked);
+    connect(ui->browseButtonMask, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonMaskClicked);
+
+    connect(ui->browseButtonSilk, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonSilkClicked);
+
+    connect(ui->browseButtonBoard, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonBoardClicked);
 
     connect(ui->testPointsButton, &QPushButton::clicked, this, &PCB2Gcode::onBrowseButtonTestPointsClicked);
 }
@@ -71,23 +77,75 @@ void PCB2Gcode::onBrowseButtonTestPointsClicked()
 
 void PCB2Gcode::onBrowseButtonLayerClicked()
 {
-    QString layerFile = QFileDialog::getOpenFileName(this, tr("Select Gerber Layer File"));
+    QString layerFile = QFileDialog::getOpenFileName(this, tr("Select Copper Layer Gerber File"));
     if (!layerFile.isEmpty()) {
         ui->firstLayer->setText(layerFile);
     }
+    else {
+        QMessageBox::critical(this, "ERROR: FILE PATH", "Invalid file path. It seems to be empty.");
+    }
+
 }
-
-
-void PCB2Gcode::onBrowseButtonDrillClicked()
-{
-    QString drillFile = QFileDialog::getOpenFileName(this, tr("Select Drill File"));
-    if (!drillFile.isEmpty()) {
-        ui->drillPath->setText(drillFile);
+void PCB2Gcode::onBrowseButtonMaskClicked(){
+    QString maskFile = QFileDialog::getOpenFileName(this, tr("Select Solder Mask Gerber File"));
+    if (!maskFile.isEmpty()) {
+        ui->maskPath->setText(maskFile);
+    }
+    else {
+        QMessageBox::critical(this, "ERROR: FILE PATH", "Invalid file path. It seems to be empty.");
     }
 }
 
-void PCB2Gcode::onGenerate()
+void PCB2Gcode::onBrowseButtonBoardClicked()
 {
+    QString boardFile = QFileDialog::getOpenFileName(this, tr("Select Board Edge Cuts Gerber File"));
+    if (!boardFile.isEmpty()) {
+        ui->boardPath->setText(boardFile);
+    } else {
+        QMessageBox::critical(this, "ERROR: FILE PATH", "Invalid file path. It seems to be empty.");
+    }
+}
+
+void PCB2Gcode::onBrowseButtonSilkClicked()
+{
+    QString silkFile = QFileDialog::getOpenFileName(this, tr("Select Silkscreen Gerber File"));
+    if (!silkFile.isEmpty()) {
+        ui->silkPath->setText(silkFile);
+    } else {
+        QMessageBox::critical(this, "ERROR: FILE PATH", "Invalid file path. It seems to be empty.");
+    }
+
+}
+
+void PCB2Gcode::onPreview()
+{
+    gerberManager.clearGerberFiles();
+
+    QString layerFile = ui->firstLayer->text();
+    QString maskFile = ui->maskPath->text();
+    QString silkFile = ui->silkPath->text();
+    QString boardFile = ui->boardPath->text();
+
+    if (layerFile.isEmpty() || maskFile.isEmpty() || silkFile.isEmpty() || boardFile.isEmpty()) {
+        QMessageBox::warning(this, tr("Incomplete Selection"),
+                             tr("Please select all Gerber files: Copper Layer, Mask, Silkscreen, and Board Edge Cuts."));
+        return;
+    }
+
+    bool loadSuccess = true;
+    loadSuccess &= gerberManager.loadGerberFile(layerFile);
+    loadSuccess &= gerberManager.loadGerberFile(maskFile);
+    loadSuccess &= gerberManager.loadGerberFile(silkFile);
+    loadSuccess &= gerberManager.loadGerberFile(boardFile);
+
+    if (!loadSuccess) {
+        QMessageBox::critical(this, tr("Loading Error"),
+                              tr("One or more Gerber files failed to load. Please check the console for details."));
+        return;
+    }
+
+}
+void PCB2Gcode::onGenerate(){
     QString testPointsFile = ui->testPointsPath->text();
     if (testPointsFile.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), tr("Please select a test points file."));
@@ -123,12 +181,6 @@ void PCB2Gcode::onGenerate()
         QMessageBox::information(this, tr("Success"), tr("G-code generated and saved successfully."));
     }
 }
-
-void PCB2Gcode::onPreview()
-{
-    QMessageBox::information(this, tr("Preview"), tr("Preview functionality not yet implemented."));
-}
-
 void PCB2Gcode::initUART()
 {
     connect(uart, &UART::connectionStatusChanged, this, [=](bool connected) {
