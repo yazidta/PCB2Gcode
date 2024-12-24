@@ -48,3 +48,6 @@ TRANSLATIONS += \
 # Python script files
 DISTFILES += \
     python/gerber_wrapper.py
+
+RESOURCES += \
+    resources.qrc

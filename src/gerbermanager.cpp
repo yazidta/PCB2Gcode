@@ -27,15 +27,8 @@ GerberManager::GerberManager() {
         py::module_ gerberWrapper = py::module_::import("gerber_wrapper");
 
         // Instantiate the GerberWrapper class
-        wrapper = gerberWrapper.attr("GerberWrapper")();
+        gerberStack  = gerberWrapper.attr("GerberWrapper")();
 
-        // Create a temporary file path for rendered SVG images
-        QTemporaryFile temp;
-        temp.open();
-        tempImagePath = temp.fileName().toStdString() + ".svg";
-        temp.close();
-
-        // Release the GIL
         PyGILState_Release(gstate);
     }
     catch (const py::error_already_set& e) {
@@ -61,7 +54,7 @@ bool GerberManager::loadGerberFiles(const QStringList& filePaths) {
         for (const QString& path : filePaths) {
             py_file_paths.append(path.toStdString());
         }
-        wrapper.attr("loadGerberFiles")(py_file_paths);
+        gerberStack.attr("loadGerberFiles")(py_file_paths);
         qDebug() << "Gerber files loaded successfully.";
         return true;
     }
@@ -73,7 +66,7 @@ bool GerberManager::loadGerberFiles(const QStringList& filePaths) {
 
 void GerberManager::clearGerberFiles() {
     try {
-        wrapper.attr("clearGerberFiles")();
+        gerberStack.attr("clearGerberFiles")();
         qDebug() << "Cleared all loaded Gerber files.";
     } catch (const py::error_already_set& e) {
         qDebug() << "Python error while clearing Gerber files:" << QString::fromStdString(e.what());
@@ -83,7 +76,7 @@ void GerberManager::clearGerberFiles() {
 QPixmap GerberManager::renderGerber(const QString& outputPath, int dpmm) {
     try {
         py::gil_scoped_acquire acquire;
-        wrapper.attr("renderToPng")(outputPath.toStdString(), dpmm);
+        gerberStack.attr("renderToPng")(outputPath.toStdString(), dpmm);
 
         QPixmap pixmap;
         if (pixmap.load(outputPath)) {

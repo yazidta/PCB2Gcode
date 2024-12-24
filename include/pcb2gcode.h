@@ -35,13 +35,17 @@ public:
 
 private Q_SLOTS:
     // Gcode Converter Tab
-    void onBrowseButtonTestPointsClicked();
-    void onBrowseButtonLayerClicked();
-    void onBrowseButtonMaskClicked();
-    void onBrowseButtonSilkClicked();
-    void onBrowseButtonBoardClicked();
+    void onBrowseTestPoints();
+    void onBrowseCopper();
+    void onBrowseMask();
+    void onBrowseSilk();
+    void onBrowseBoard();
     void onGenerate();
     void onPreview();
+    void onZoomIn();
+    void onZoomOut();
+    void onZoomOriginal();
+
 
 
 
@@ -54,7 +58,6 @@ private:
     GerberManager gerberManager;
 
     void connectSignals();
-    void setupFirstTab();
     void initUART();
 };
 
