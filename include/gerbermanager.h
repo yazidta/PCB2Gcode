@@ -24,7 +24,7 @@ public:
 
 
 private:
-    py::object wrapper;
+    py::object gerberStack;
     std::string tempImagePath;
 };
 

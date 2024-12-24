@@ -121,6 +121,7 @@ void PCB2Gcode::onBrowseButtonSilkClicked()
 
 void PCB2Gcode::onPreview()
 {
+    // Clear any previously loaded files in GerberManager
     gerberManager.clearGerberFiles();
 
     QString layerFile = ui->firstLayer->text();
