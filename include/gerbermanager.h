@@ -1,16 +1,11 @@
 #ifndef GERBERMANAGER_H
 #define GERBERMANAGER_H
 #undef slots
+#include <Python.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
-
 #include <QTemporaryFile>
-#include <QDir>
-#include <QDebug>
-#include <QPainter>
-#include <QFile>
-#include <QByteArray>
-#include <QBuffer>
+#include <QPixmap>
 #include <QSvgRenderer>
 #include <QString>
 #include <string>
@@ -23,11 +18,12 @@ public:
     GerberManager();
     ~GerberManager();
 
-    bool loadGerberFile(const QString& filePath);
+    bool loadGerberFiles(const QStringList& filePaths);
     void clearGerberFiles();
+    QPixmap renderGerber(const QString& outputPath, int dpmm=40);
+
 
 private:
-    py::module_ gerberWrapper;
     py::object wrapper;
     std::string tempImagePath;
 };

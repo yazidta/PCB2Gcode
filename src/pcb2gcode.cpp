@@ -1,6 +1,8 @@
 #include "include/pcb2gcode.h"
 #include "ui_PCB2Gcode.h"
 
+#include <QProgressDialog>
+
 
 
 PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this)), gerberManager()
@@ -132,19 +134,44 @@ void PCB2Gcode::onPreview()
         return;
     }
 
-    bool loadSuccess = true;
-    loadSuccess &= gerberManager.loadGerberFile(layerFile);
-    loadSuccess &= gerberManager.loadGerberFile(maskFile);
-    loadSuccess &= gerberManager.loadGerberFile(silkFile);
-    loadSuccess &= gerberManager.loadGerberFile(boardFile);
+    QStringList filePaths = { layerFile, maskFile, silkFile, boardFile };
 
-    if (!loadSuccess) {
-        QMessageBox::critical(this, tr("Loading Error"),
-                              tr("One or more Gerber files failed to load. Please check the console for details."));
+    // Load Gerber files
+    if (!gerberManager.loadGerberFiles(filePaths)) {
+        QMessageBox::critical(this, tr("Loading Failed"),
+                              tr("An error occurred while loading the Gerber files. Please check the logs for details."));
         return;
     }
 
+    // Show progress dialog
+    QProgressDialog progressDialog(tr("Rendering Gerber files..."), tr("Cancel"), 0, 0, this);
+    progressDialog.setWindowModality(Qt::WindowModal);
+    progressDialog.show();
+
+    // Define output path for rendered image
+    QString outputImagePath = QFileDialog::getSaveFileName(this, tr("Save Rendered Image"), "", tr("PNG Images (*.png)"));
+    if (outputImagePath.isEmpty()) {
+        QMessageBox::information(this, tr("Cancelled"), tr("Rendering cancelled by user."));
+        return;
+    }
+
+    // Render Gerber files
+    QPixmap renderedImage = gerberManager.renderGerber(outputImagePath, 40);
+
+    progressDialog.close();
+
+    if (renderedImage.isNull()) {
+        QMessageBox::critical(this, tr("Rendering Failed"),
+                              tr("An error occurred during the rendering process. Please check the logs for details."));
+        return;
+    }
+
+    // Display the rendered image in the UI
+    ui->graphicsViewPreview->setScene(new QGraphicsScene(this));
+    ui->graphicsViewPreview->scene()->addPixmap(renderedImage);
+    ui->graphicsViewPreview->fitInView(ui->graphicsViewPreview->scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
 }
+
 void PCB2Gcode::onGenerate(){
     QString testPointsFile = ui->testPointsPath->text();
     if (testPointsFile.isEmpty()) {

@@ -21,32 +21,21 @@ HEADERS += \
     include/gerbermanager.h
 
 # Python Configuration
-PYTHON_VERSIONLIB = 3.9  # Adjust this to your installed Python version
 PYTHON_VERSION = 3.12  # Adjust this to your installed Python version
+PYTHON_VERSIONLIB = 312  # Adjust this to your installed Python library version(for anaconda there shouldn't be a " . ")
 
-PYTHON_PATH = C:/msys64/mingw64/
- # Using Python from MSYS2 environment
+# Conda Environment Path
+CONDA_ENV_PATH = C:/Users/ahmed/.conda/envs/pcb2gcode_env
 
 # Python Include paths
 INCLUDEPATH += \
-    $$PYTHON_PATH/include \
-    $$PYTHON_PATH/include/python$$PYTHON_VERSION \
-    $$PYTHON_PATH/lib/python$$PYTHON_VERSION/site-packages/include \
-    $$PYTHON_PATH/lib/python$$PYTHON_VERSION/site-packages/pybind11/include
+    $$CONDA_ENV_PATH/include \
+    $$CONDA_ENV_PATH/include/python$$PYTHON_VERSION \
+    $$CONDA_ENV_PATH/Lib/site-packages/include \
+    $$CONDA_ENV_PATH/Lib/site-packages/pybind11/include
 
 # Python Library path
-LIBS += -L$$PYTHON_PATH/lib/ -lpython$$PYTHON_VERSION
-
-# Build Custom Commands for Python Script
-copydata.commands = \
-    $(CHK_DIR_EXISTS) "$$shell_path($$OUT_PWD/python)" $(MKDIR) "$$shell_path($$OUT_PWD/python)" && \
-    $(COPY_FILE) "$$shell_path($$PWD/python/gerber_wrapper.py)" "$$shell_path($$OUT_PWD/python/gerber_wrapper.py)"
-
-first.depends = $(first) copydata
-export(first.depends)
-export(copydata.commands)
-
-QMAKE_EXTRA_TARGETS += first copydata
+LIBS += -L$$CONDA_ENV_PATH/libs/ -lpython$$PYTHON_VERSIONLIB
 
 # Forms
 FORMS += \
