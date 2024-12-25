@@ -45,8 +45,10 @@ private Q_SLOTS:
     void onZoomIn();
     void onZoomOut();
     void onZoomOriginal();
-
-
+    void onDrag();
+    void onSaveImage();
+    void enableToolBar();
+    void keyPressEvent(QKeyEvent *event);
 
 
 private:
@@ -59,6 +61,10 @@ private:
 
     void connectSignals();
     void initUART();
+    bool isImageRendered = false;
+    bool isDragEnabled = false;
+
+
 };
 
 #endif // PCB2GCODE_H

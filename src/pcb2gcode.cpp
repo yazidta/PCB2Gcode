@@ -2,7 +2,7 @@
 #include "ui_PCB2Gcode.h"
 
 #include <QProgressDialog>
-
+#include <QKeyEvent>
 
 
 PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this)), gerberManager()
@@ -30,13 +30,20 @@ void PCB2Gcode::connectSignals()
 
     connect(ui->browseButtonMask, &QPushButton::clicked, this, &PCB2Gcode::onBrowseMask);
 
-    connect(ui->browseButtonSilk, &QPushButton::clicked, this, &::PCB2Gcode::onBrowseSilk);
+    connect(ui->browseButtonSilk, &QPushButton::clicked, this, &PCB2Gcode::onBrowseSilk);
 
-    connect(ui->browseButtonBoard, &QPushButton::clicked, this, &::PCB2Gcode::onBrowseBoard);
+    connect(ui->browseButtonBoard, &QPushButton::clicked, this, &PCB2Gcode::onBrowseBoard);
 
-    connect(ui->testPointsButton, &QPushButton::clicked, this, &::PCB2Gcode::onBrowseTestPoints);
+    connect(ui->zoomInButton, &QPushButton::clicked, this, &PCB2Gcode::onZoomIn);
+
+    connect(ui->zoomOutButton, &QPushButton::clicked, this, &PCB2Gcode::onZoomOut);
+
+    connect(ui->zoomOriginalButton, &QPushButton::clicked, this, &PCB2Gcode::onZoomOriginal);
+
+    connect(ui->dragButton, &QPushButton::clicked, this, &PCB2Gcode::onDrag);
 
 }
+
 
 void PCB2Gcode::onBrowseTestPoints()
 {
@@ -140,9 +147,11 @@ void PCB2Gcode::onPreview()
     }
 
     // Display the rendered image in the UI
+    enableToolBar();
     ui->graphicsViewPreview->setScene(new QGraphicsScene(this));
     ui->graphicsViewPreview->scene()->addPixmap(renderedImage);
     ui->graphicsViewPreview->fitInView(ui->graphicsViewPreview->scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
+
 }
 
 void PCB2Gcode::onGenerate(){
@@ -182,15 +191,55 @@ void PCB2Gcode::onGenerate(){
     }
 }
 
+void PCB2Gcode::enableToolBar(){
+    ui->zoomInButton->isEnabled();
+    ui->zoomOutButton->isEnabled();
+    ui->zoomOriginalButton->isEnabled();
+    ui->dragButton->isEnabled();
+    ui->saveImageButton->isEnabled();
+}
+
 void PCB2Gcode::onZoomIn(){
+    ui->graphicsViewPreview->scale(1.1, 1.1);
 
 }
 void PCB2Gcode::onZoomOut(){
+    ui->graphicsViewPreview->scale(1/1.1, 1/1.1);
 
 }
 void PCB2Gcode::onZoomOriginal(){
+    ui->graphicsViewPreview->resetTransform();
+    if (ui->graphicsViewPreview->scene()) {
+        ui->graphicsViewPreview->fitInView(ui->graphicsViewPreview->scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
+    }
+}
+
+void PCB2Gcode::onDrag(){
+    if (isDragEnabled){
+        ui->graphicsViewPreview->setDragMode(QGraphicsView::NoDrag);
+        isDragEnabled = false;
+    }
+    else{
+        ui ->graphicsViewPreview->setDragMode(QGraphicsView::ScrollHandDrag);
+        isDragEnabled = true;
+    }
+}
+
+void PCB2Gcode::keyPressEvent(QKeyEvent *event){
+    if (event->key() == Qt::Key_Escape && isDragEnabled){
+        ui->graphicsViewPreview->setDragMode(QGraphicsView::NoDrag);
+        isDragEnabled = false;
+    }
+    else{
+        return;
+    }
+    QWidget::keyPressEvent(event);
+}
+
+void PCB2Gcode::onSaveImage(){
 
 }
+
 
 void PCB2Gcode::initUART()
 {

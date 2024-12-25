@@ -248,6 +248,12 @@
           </property>
           <item>
            <widget class="QPushButton" name="saveImageButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Save</string>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -267,6 +273,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="zoomOriginalButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Reset Zoom</string>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -286,6 +298,12 @@
           </item>
           <item>
            <widget class="QPushButton" name="zoomOutButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Zoom out</string>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -305,6 +323,18 @@
           </item>
           <item>
            <widget class="QPushButton" name="zoomInButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="toolTip">
+             <string>Zoom in</string>
+            </property>
+            <property name="toolTipDuration">
+             <number>-1</number>
+            </property>
+            <property name="accessibleName">
+             <string notr="true"/>
+            </property>
             <property name="text">
              <string/>
             </property>
@@ -324,11 +354,23 @@
           </item>
           <item>
            <widget class="QPushButton" name="dragButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="maximumSize">
              <size>
               <width>16777215</width>
               <height>16777215</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Drag</string>
+            </property>
+            <property name="toolTipDuration">
+             <number>-1</number>
+            </property>
+            <property name="accessibleName">
+             <string/>
             </property>
             <property name="text">
              <string/>
