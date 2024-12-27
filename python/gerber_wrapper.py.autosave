@@ -1,6 +1,4 @@
 import logging
-import tempfile
-import os
 from pygerber.gerberx3.api.v2 import GerberFile, Project as GerberLayerStack
 from pygerber.gerberx3.math.bounding_box import BoundingBox
 from pygerber.gerberx3.math.vector_2d import Vector2D
@@ -109,7 +107,6 @@ class GerberWrapper:
             max_x = max(all_max_x)
             max_y = max(all_max_y)
 
-            # Calculate overall bounding box dimensions
             bounding_box_dict = {
                 "min_x": min_x,
                 "min_y": min_y,

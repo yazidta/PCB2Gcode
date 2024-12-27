@@ -42,6 +42,7 @@ private Q_SLOTS:
     void onBrowseBoard();
     void onGenerate();
     void onPreview();
+    void onPreviewTestPoints();
     void onZoomIn();
     void onZoomOut();
     void onZoomOriginal();
@@ -58,6 +59,7 @@ private:
     UART *uart;
     QTabWidget* tabWidget;
     GerberManager gerberManager;
+    QPixmap  saveImageRendered;
 
     void connectSignals();
     void initUART();

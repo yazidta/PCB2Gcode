@@ -65,7 +65,7 @@
            <item>
             <layout class="QHBoxLayout" name="copperLayout">
              <item>
-              <widget class="QLineEdit" name="copperLayer"/>
+              <widget class="QLineEdit" name="copperPath"/>
              </item>
              <item>
               <widget class="QPushButton" name="browseButtonCopper">
@@ -152,7 +152,7 @@
               <widget class="QLineEdit" name="testPointsPath"/>
              </item>
              <item>
-              <widget class="QPushButton" name="testPointsButton">
+              <widget class="QPushButton" name="browseTestPointsButton">
                <property name="text">
                 <string>Browse</string>
                </property>
@@ -221,7 +221,7 @@
               </layout>
              </item>
              <item>
-              <widget class="QPushButton" name="pushButton_4">
+              <widget class="QPushButton" name="previewTestPointsButton">
                <property name="text">
                 <string>Preview Test Points</string>
                </property>

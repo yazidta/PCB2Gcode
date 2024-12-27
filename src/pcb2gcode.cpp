@@ -26,6 +26,8 @@ void PCB2Gcode::connectSignals()
 
     connect(ui->previewButton, &QPushButton::clicked, this, &PCB2Gcode::onPreview);
 
+    connect(ui->previewTestPointsButton, &QPushButton::clicked, this, &PCB2Gcode::onPreviewTestPoints);
+
     connect(ui->browseButtonCopper, &QPushButton::clicked, this, &PCB2Gcode::onBrowseCopper);
 
     connect(ui->browseButtonMask, &QPushButton::clicked, this, &PCB2Gcode::onBrowseMask);
@@ -33,6 +35,8 @@ void PCB2Gcode::connectSignals()
     connect(ui->browseButtonSilk, &QPushButton::clicked, this, &PCB2Gcode::onBrowseSilk);
 
     connect(ui->browseButtonBoard, &QPushButton::clicked, this, &PCB2Gcode::onBrowseBoard);
+
+    connect(ui->browseTestPointsButton, &QPushButton::clicked, this, &PCB2Gcode::onBrowseTestPoints);
 
     connect(ui->zoomInButton, &QPushButton::clicked, this, &PCB2Gcode::onZoomIn);
 
@@ -42,6 +46,17 @@ void PCB2Gcode::connectSignals()
 
     connect(ui->dragButton, &QPushButton::clicked, this, &PCB2Gcode::onDrag);
 
+    connect(ui->saveImageButton, &QPushButton::clicked, this, &PCB2Gcode::onSaveImage);
+
+
+}
+
+void PCB2Gcode::enableToolBar(){
+    ui->zoomInButton->setEnabled(true);
+    ui->zoomOutButton->setEnabled(true);
+    ui->zoomOriginalButton->setEnabled(true);
+    ui->dragButton->setEnabled(true);
+    ui->saveImageButton->setEnabled(true);
 }
 
 
@@ -60,7 +75,7 @@ void PCB2Gcode::onBrowseCopper()
 {
     QString copperFile = QFileDialog::getOpenFileName(this, tr("Select Copper Layer Gerber File"));
     if (!copperFile.isEmpty()) {
-        ui->copperLayer->setText(copperFile);
+        ui->copperPath->setText(copperFile);
     }
     else {
         QMessageBox::critical(this, "ERROR: FILE PATH", "Invalid file path. It seems to be empty.");
@@ -103,7 +118,7 @@ void PCB2Gcode::onPreview()
     // Clear any previously loaded files in GerberManager
     gerberManager.clearGerberFiles();
 
-    QString copperFile = ui->copperLayer->text();
+    QString copperFile = ui->copperPath->text();
     QString maskFile = ui->maskPath->text();
     QString silkFile = ui->silkPath->text();
     QString boardFile = ui->boardPath->text();
@@ -128,15 +143,8 @@ void PCB2Gcode::onPreview()
     progressDialog.setWindowModality(Qt::WindowModal);
     progressDialog.show();
 
-    // Define output path for rendered image
-    QString outputImagePath = QFileDialog::getSaveFileName(this, tr("Save Rendered Image"), "", tr("PNG Images (*.png)"));
-    if (outputImagePath.isEmpty()) {
-        QMessageBox::information(this, tr("Cancelled"), tr("Rendering cancelled by user."));
-        return;
-    }
-
     // Render Gerber files
-    QPixmap renderedImage = gerberManager.renderGerber(outputImagePath, 40);
+    QPixmap renderedImage = gerberManager.renderGerber(40);
 
     progressDialog.close();
 
@@ -151,6 +159,43 @@ void PCB2Gcode::onPreview()
     ui->graphicsViewPreview->setScene(new QGraphicsScene(this));
     ui->graphicsViewPreview->scene()->addPixmap(renderedImage);
     ui->graphicsViewPreview->fitInView(ui->graphicsViewPreview->scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
+    saveImageRendered = renderedImage;
+}
+
+void PCB2Gcode::onPreviewTestPoints(){
+    onPreview();
+    gerberManager.getBoundingBox();
+
+    QString testPointsFile = ui->testPointsPath->text();
+    if (testPointsFile.isEmpty()) {
+        QMessageBox::warning(this, tr("Missing Test Points File"),
+                             tr("Please select the Test Points CSV file."));
+        return;
+    }
+
+    QList<TestPoint> testPoints = gerberManager.loadTestPoints(testPointsFile);
+    if (testPoints.isEmpty()) {
+        QMessageBox::critical(this, tr("Loading Test Points Failed"),
+                              tr("An error occurred while loading test points from the CSV file. Please check the file format and contents."));
+        return;
+    }
+    if (saveImageRendered.isNull()) {
+        QMessageBox::critical(this, tr("Rendering Failed"),
+                              tr("No rendered image found. Please render the Gerber files first."));
+        return;
+    }
+
+    QPixmap finalImage = gerberManager.overlayTestPoints(saveImageRendered, testPoints);
+
+    // Display the final image in the UI
+    enableToolBar();
+    ui->graphicsViewPreview->setScene(new QGraphicsScene(this));
+    ui->graphicsViewPreview->scene()->addPixmap(finalImage);
+    ui->graphicsViewPreview->fitInView(ui->graphicsViewPreview->scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
+
+    // Store the final rendered image for saving
+    saveImageRendered = finalImage;
+
 
 }
 
@@ -191,13 +236,6 @@ void PCB2Gcode::onGenerate(){
     }
 }
 
-void PCB2Gcode::enableToolBar(){
-    ui->zoomInButton->isEnabled();
-    ui->zoomOutButton->isEnabled();
-    ui->zoomOriginalButton->isEnabled();
-    ui->dragButton->isEnabled();
-    ui->saveImageButton->isEnabled();
-}
 
 void PCB2Gcode::onZoomIn(){
     ui->graphicsViewPreview->scale(1.1, 1.1);
@@ -237,7 +275,24 @@ void PCB2Gcode::keyPressEvent(QKeyEvent *event){
 }
 
 void PCB2Gcode::onSaveImage(){
+    QString fileName = QFileDialog::getSaveFileName(
+        this,
+        tr("Save Image"),
+        "",
+        tr("PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)")
+        );
 
+    if (!fileName.isEmpty()){
+        if (!saveImageRendered.save(fileName)){
+            QMessageBox::warning(this, tr("Save Failed"), tr("Failed to save the image."));
+        }
+        else{
+            qDebug() << "Image saved to:" << fileName;
+        }
+    }
+    else{
+        qDebug() << "Save operation canceled.";
+    }
 }
 
 
