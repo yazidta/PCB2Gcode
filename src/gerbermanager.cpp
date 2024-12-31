@@ -78,7 +78,7 @@ QPixmap GerberManager::renderGerber(int dpmm) {
         py::gil_scoped_acquire acquire;
 
         py::object pyRenderToPng = gerberStack.attr("renderToPng");
-        std::string tempFilePath = pyRenderToPng(NULL, dpmm).cast<std::string>();
+        std::string tempFilePath = pyRenderToPng(dpmm).cast<std::string>();
 
         if (tempFilePath.empty()) {
             qDebug() << "Failed to render the image, temporary file path is empty.";

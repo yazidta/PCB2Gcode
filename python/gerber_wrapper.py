@@ -1,91 +1,114 @@
 import logging
 import tempfile
-import os
-from pygerber.gerberx3.api.v2 import GerberFile, Project as GerberLayerStack
-from pygerber.gerberx3.math.bounding_box import BoundingBox
-from pygerber.gerberx3.math.vector_2d import Vector2D
-from decimal import Decimal
+from pathlib import Path
 
+from pygerber.gerberx3.api.v2 import GerberFile, Project, FileTypeEnum
+from pygerber.backend.rasterized_2d.color_scheme import ColorScheme
+from pygerber.gerberx3.api._v2 import ImageFormatEnum, PixelFormatEnum
+from pygerber.common.rgba import RGBA
 
-
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 class GerberWrapper:
+    """
+    Wrapper class for handling Gerber files and rendering them to images.
+    """
+
     def __init__(self):
-        self.gerberStack = None
+        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+        self.project = None
         logging.info("GerberWrapper initialized.")
 
-    def parseGerberFile(self, file_path):
-        """Parse a Gerber file and return its content."""
+    def parseGerberFile(self, file_path: str, file_type: FileTypeEnum) -> GerberFile:
+        """
+        Parses a single Gerber file with the specified file type.
+
+        Args:
+            file_path: Path to the Gerber file.
+            file_type: Type of the Gerber file (e.g., COPPER, MASK, etc.).
+
+        Returns:
+            A parsed GerberFile instance.
+        """
+
         try:
-            with open(file_path, 'r') as f:
-                content = f.read()
-            gerber_file = GerberFile.from_str(content)
+            gerber_file = GerberFile.from_file(file_path, file_type=file_type)
             logging.info(f"Successfully parsed Gerber file: {file_path}")
             return gerber_file
         except Exception as e:
             logging.error(f"Failed to parse Gerber file: {file_path}. Exception: {e}")
             raise
 
-    def loadGerberFiles(self, gerber_file_paths):
-        """Load multiple Gerber files into the layer stack."""
+    def loadGerberFiles(self, gerber_file_paths: list):
+        """
+        Loads multiple Gerber files (copper, mask, silk, and edge cuts) into the project.
+
+        Args:
+            gerber_file_paths: List of file paths to the Gerber files.
+        """
         try:
-            loaded_files = [self.parseGerberFile(file_path) for file_path in gerber_file_paths]
-            self.gerberStack = GerberLayerStack(files=loaded_files)
+            if len(gerber_file_paths) != 4:
+                raise ValueError("Expected exactly 4 Gerber files (copper, mask, silk, edge).")
+            file_types = [FileTypeEnum.COPPER, FileTypeEnum.MASK, FileTypeEnum.SILK, FileTypeEnum.EDGE]
+
+            self.project = Project(
+                [
+                    self.parseGerberFile(file_path, file_type)
+                    for file_path, file_type in zip(gerber_file_paths, file_types)
+                ]
+            )
             logging.info("Successfully initialized GerberLayerStack with all files.")
         except Exception as e:
             logging.error(f"Failed to load Gerber files. Exception: {e}")
             raise
 
     def clearGerberFiles(self):
-        """Clear all loaded files."""
-        self.gerberStack = None
+        """
+        Clears the currently loaded Gerber files from memory.
+        """
+        self.project = None
         logging.info("Cleared all loaded Gerber files.")
 
-    def renderToPng(self, tempFilePath = None, dpmm=100):
-        """Render the Gerber layer stack to a PNG image."""
-        if not self.gerberStack:
+    def renderToPng(self, dpmm=100):
+        """
+        Renders the loaded Gerber files to a PNG image, with customized colors.
+
+        Args:
+            dpmm: Dots per millimeter for rendering resolution. Defaults to 100.
+
+        Returns:
+            Path to the rendered PNG file.
+        """
+        if not self.project:
             logging.warning("No layer stack initialized. Please load Gerber files first.")
-            return
+            return None
 
         try:
-            parsed_stack = self.gerberStack.parse()
-            logging.info("Layer stack parsed successfully.")
-            #if tempFilePath is None:
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmpFile:
-                tempFilePath = tmpFile.name
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tempFile:
+                tempFilePath = tempFile.name
             logging.info(f"Rendering to output path: {tempFilePath}")
-            parsed_stack.render_raster(tempFilePath, dpmm=dpmm)
+
+            self.project.parse().render_raster(tempFilePath, dpmm=60)
             logging.info(f"Successfully rendered GerberLayerStack to PNG: {tempFilePath}")
             return tempFilePath
-
         except Exception as e:
             logging.error(f"Failed to render Gerber layer stack. Exception: {e}")
             raise
-
     def processBoundingBox(self, bounding_box):
-        """ Bounding box calculatations """
-
         try:
             min_x = bounding_box['min_x']
             min_y = bounding_box['min_y']
             max_x = bounding_box['max_x']
             max_y = bounding_box['max_y']
-
             width = max_x - min_x
             height = max_y - min_y
-
             logging.info(f"Bounding box width: {width}, height {height}")
         except KeyError as e:
             logging.error(f"Missing key in bounding box: {e}")
 
 
 
-
     def getBoundingBox(self):
-        """Get bounding box from the layer stack."""
-        if not self.gerberStack:
+        if not self.project:
             logging.warning("No Gerber files loaded to calculate the bounding box.")
             return None
 
@@ -95,10 +118,9 @@ class GerberWrapper:
             all_max_x = []
             all_max_y = []
 
-            for gerber_file in self.gerberStack.files:
+            for gerber_file in self.project.files:
                 parsed_file = gerber_file.parse()
                 file_info = parsed_file.get_info()
-
                 all_min_x.append(float(file_info.min_x_mm))
                 all_min_y.append(float(file_info.min_y_mm))
                 all_max_x.append(float(file_info.max_x_mm))
@@ -109,7 +131,6 @@ class GerberWrapper:
             max_x = max(all_max_x)
             max_y = max(all_max_y)
 
-            # Calculate overall bounding box dimensions
             bounding_box_dict = {
                 "min_x": min_x,
                 "min_y": min_y,
@@ -120,7 +141,7 @@ class GerberWrapper:
             self.processBoundingBox(bounding_box_dict)
             logging.info(f"Bounding box calculated: {bounding_box_dict}")
             return bounding_box_dict
-
         except Exception as e:
             logging.error(f"Failed to fetch bounding box. Exception: {e}")
             raise
+
