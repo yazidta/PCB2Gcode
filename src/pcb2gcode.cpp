@@ -25,7 +25,9 @@ PCB2Gcode::~PCB2Gcode()
 void PCB2Gcode::connectSignals()
 {
 
-    connect(ui->generateButton, &QPushButton::clicked, this, &PCB2Gcode::onGenerate);
+    connect(ui->generateCSVButton, &QPushButton::clicked, this, &PCB2Gcode::onGenerateFromCSV);
+
+    connect(ui->generateGerberButton, &QPushButton::clicked, this, &PCB2Gcode::onGenerateFromGerber);
 
     connect(ui->previewButton, &QPushButton::clicked, this, &PCB2Gcode::onPreview);
 
@@ -201,8 +203,8 @@ void PCB2Gcode::onPreviewTestPoints(){
 
 
 }
-/*
-void PCB2Gcode::onGenerate(){
+
+void PCB2Gcode::onGenerateFromCSV(){
     QString testPointsFile = ui->testPointsPath->text();
     if (testPointsFile.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), tr("Please select a test points file."));
@@ -210,21 +212,21 @@ void PCB2Gcode::onGenerate(){
     }
 
 
-    if (!gcodeConverter.loadCSVFile(testPointsFile)) {
+    if (!gcodeConverter->loadCSVFile(testPointsFile)) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to load test points file. Please check the file format."));
         return;
     }
 
     // Filter and group test points
-    QList<TestPoint> topSidePoints = gcodeConverter.filterTopSidePoints();
+    QList<TestPoint> topSidePoints = gcodeConverter->filterTopSidePoints();
     if (topSidePoints.isEmpty()) {
         QMessageBox::critical(this, tr("Error"), tr("No top-side test points found in the file."));
         return;
     }
 
-    QMap<QString, QList<TestPoint>> groupedPoints = gcodeConverter.groupByNet(topSidePoints);
+    QMap<QString, QList<TestPoint>> groupedPoints = gcodeConverter->groupByNet(topSidePoints);
 
-    QString gCode = gcodeConverter.generateGCodeFromCSV(groupedPoints);
+    QString gCode = gcodeConverter->generateGCodeFromCSV(groupedPoints);
 
 
     QString savePath = QFileDialog::getSaveFileName(this, tr("Save G-Code File"), "", tr("G-Code Files (*.gcode)"));
@@ -232,27 +234,24 @@ void PCB2Gcode::onGenerate(){
         return;
     }
 
-    if (!gcodeConverter.saveGCodeToFile(savePath, gCode)) {
+    if (!gcodeConverter->saveGCodeToFile(savePath, gCode)) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to save G-code file."));
     } else {
         QMessageBox::information(this, tr("Success"), tr("G-code generated and saved successfully."));
     }
-} */
+}
 
-void PCB2Gcode::onGenerate(){
+void PCB2Gcode::onGenerateFromGerber(){
 
     QString copperFile = ui->copperPath->text();
-    QString maskFile = ui->maskPath->text();
-    QString silkFile = ui->silkPath->text();
-    QString boardFile = ui->boardPath->text();
 
-    if (copperFile.isEmpty() || maskFile.isEmpty() || silkFile.isEmpty() || boardFile.isEmpty()) {
-        QMessageBox::warning(this, tr("Incomplete Selection"),
-                             tr("Please select all Gerber files: Copper Layer, Mask, Silkscreen, and Board Edge Cuts."));
+    if (copperFile.isEmpty()) {
+        QMessageBox::warning(this, tr("Missing Copper Layer File"),
+                             tr("Please select the Copper Layer, Mask, Silkscreen, and Board Edge Cuts."));
         return;
     }
 
-    QStringList filePaths = { copperFile, maskFile, silkFile, boardFile };
+    QStringList filePaths = { copperFile };
 
     // Load Gerber files
     if (!gerberManager->loadGerberFiles(filePaths)) {

@@ -163,7 +163,7 @@
            <item>
             <widget class="QGroupBox" name="settingsGroup">
              <property name="title">
-              <string>Settings</string>
+              <string>Settings -- *This features is still under construction</string>
              </property>
              <layout class="QFormLayout" name="formLayout">
               <item row="0" column="0">
@@ -205,9 +205,30 @@
              <item>
               <layout class="QHBoxLayout" name="actionButtonsLayout">
                <item>
-                <widget class="QPushButton" name="generateButton">
+                <widget class="QPushButton" name="generateGerberButton">
                  <property name="text">
-                  <string>Generate</string>
+                  <string>Generate using Gerber</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="generateCSVButton">
+                 <property name="text">
+                  <string>Generate using CSV</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
+              <layout class="QHBoxLayout" name="horizontalLayout_2">
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="previewTestPointsButton">
+                 <property name="text">
+                  <string>Preview Test Points</string>
                  </property>
                 </widget>
                </item>
@@ -219,13 +240,6 @@
                 </widget>
                </item>
               </layout>
-             </item>
-             <item>
-              <widget class="QPushButton" name="previewTestPointsButton">
-               <property name="text">
-                <string>Preview Test Points</string>
-               </property>
-              </widget>
              </item>
             </layout>
            </item>

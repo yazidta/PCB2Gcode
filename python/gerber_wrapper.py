@@ -17,7 +17,7 @@ class GerberWrapper:
     """
 
     def __init__(self):
-        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
         self.project = None
         logging.debug("GerberWrapper initialized.")
 
@@ -45,10 +45,10 @@ class GerberWrapper:
             gerberFilePaths: List of file paths to the Gerber files.
         """
         try:
-            if len(gerberFilePaths) != 4:
-                raise ValueError("Expected exactly 4 Gerber files (copper, mask, silk, edge).")
-            fileTypes = [FileTypeEnum.COPPER, FileTypeEnum.MASK, FileTypeEnum.SILK, FileTypeEnum.EDGE]
-
+            if len(gerberFilePaths) == 4:
+                fileTypes = [FileTypeEnum.COPPER, FileTypeEnum.MASK, FileTypeEnum.SILK, FileTypeEnum.EDGE]
+            else:
+                fileTypes = [FileTypeEnum.COPPER]
             self.project = Project(
                 [
                     self.parseGerberFile(filePath, fileType)

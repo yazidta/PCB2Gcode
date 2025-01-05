@@ -41,7 +41,8 @@ private Q_SLOTS:
     void onBrowseMask();
     void onBrowseSilk();
     void onBrowseBoard();
-    void onGenerate();
+    void onGenerateFromGerber();
+    void onGenerateFromCSV();
     void onPreview();
     void onPreviewTestPoints();
     void onZoomIn();

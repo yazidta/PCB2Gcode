@@ -167,7 +167,7 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     QPixmap imageTestPoints = baseImage;
     QPainter painter(&imageTestPoints);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    QPen pen(Qt::yellow, 2);                              // Brighter color with thickness
+    QPen pen(Qt::yellow, 2);   // Brighter color with thickness
     painter.setPen(pen);
     QBrush brush(Qt::yellow);
     painter.setBrush(brush);
