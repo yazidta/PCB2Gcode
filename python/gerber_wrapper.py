@@ -1,12 +1,15 @@
 import logging
 import tempfile
 from pathlib import Path
-
 from pygerber.gerberx3.api.v2 import GerberFile, Project, FileTypeEnum
 from pygerber.backend.rasterized_2d.color_scheme import ColorScheme
 from pygerber.gerberx3.api._v2 import ImageFormatEnum, PixelFormatEnum
 from pygerber.common.rgba import RGBA
 
+from pygerber.gerberx3.parser2.attributes2 import ObjectAttributes, ApertureAttributes
+from pygerber.gerberx3.parser2.commands2 import command2
+from pygerber.gerberx3.parser2.commands2.flash2 import Flash2
+from pygerber.gerberx3.parser2.state2 import State2Constants
 
 class GerberWrapper:
     """
@@ -14,49 +17,45 @@ class GerberWrapper:
     """
 
     def __init__(self):
-        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
         self.project = None
-        logging.info("GerberWrapper initialized.")
+        logging.debug("GerberWrapper initialized.")
 
-    def parseGerberFile(self, file_path: str, file_type: FileTypeEnum) -> GerberFile:
+    def parseGerberFile(self, filePath: str, fileType: FileTypeEnum) -> GerberFile:
         """
         Parses a single Gerber file with the specified file type.
-
         Args:
-            file_path: Path to the Gerber file.
-            file_type: Type of the Gerber file (e.g., COPPER, MASK, etc.).
-
+            filePath: Path to the Gerber file.
+            fileType: Type of the Gerber file (e.g., COPPER, MASK, etc.).
         Returns:
             A parsed GerberFile instance.
         """
-
         try:
-            gerber_file = GerberFile.from_file(file_path, file_type=file_type)
-            logging.info(f"Successfully parsed Gerber file: {file_path}")
-            return gerber_file
+            gerberFile = GerberFile.from_file(filePath, file_type=fileType)
+            logging.debug(f"Successfully parsed Gerber file: {filePath}")
+            return gerberFile
         except Exception as e:
-            logging.error(f"Failed to parse Gerber file: {file_path}. Exception: {e}")
+            logging.error(f"Failed to parse Gerber file: {filePath}. Exception: {e}")
             raise
 
-    def loadGerberFiles(self, gerber_file_paths: list):
+    def loadGerberFiles(self, gerberFilePaths: list):
         """
         Loads multiple Gerber files (copper, mask, silk, and edge cuts) into the project.
-
         Args:
-            gerber_file_paths: List of file paths to the Gerber files.
+            gerberFilePaths: List of file paths to the Gerber files.
         """
         try:
-            if len(gerber_file_paths) != 4:
+            if len(gerberFilePaths) != 4:
                 raise ValueError("Expected exactly 4 Gerber files (copper, mask, silk, edge).")
-            file_types = [FileTypeEnum.COPPER, FileTypeEnum.MASK, FileTypeEnum.SILK, FileTypeEnum.EDGE]
+            fileTypes = [FileTypeEnum.COPPER, FileTypeEnum.MASK, FileTypeEnum.SILK, FileTypeEnum.EDGE]
 
             self.project = Project(
                 [
-                    self.parseGerberFile(file_path, file_type)
-                    for file_path, file_type in zip(gerber_file_paths, file_types)
+                    self.parseGerberFile(filePath, fileType)
+                    for filePath, fileType in zip(gerberFilePaths, fileTypes)
                 ]
             )
-            logging.info("Successfully initialized GerberLayerStack with all files.")
+            logging.debug("Successfully initialized GerberLayerStack with all files.")
         except Exception as e:
             logging.error(f"Failed to load Gerber files. Exception: {e}")
             raise
@@ -66,46 +65,41 @@ class GerberWrapper:
         Clears the currently loaded Gerber files from memory.
         """
         self.project = None
-        logging.info("Cleared all loaded Gerber files.")
+        logging.debug("Cleared all loaded Gerber files.")
 
     def renderToPng(self, dpmm=100):
         """
         Renders the loaded Gerber files to a PNG image, with customized colors.
-
         Args:
             dpmm: Dots per millimeter for rendering resolution. Defaults to 100.
-
         Returns:
             Path to the rendered PNG file.
         """
         if not self.project:
             logging.warning("No layer stack initialized. Please load Gerber files first.")
             return None
-
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tempFile:
                 tempFilePath = tempFile.name
-            logging.info(f"Rendering to output path: {tempFilePath}")
-
+            logging.debug(f"Rendering to output path: {tempFilePath}")
             self.project.parse().render_raster(tempFilePath, dpmm=60)
-            logging.info(f"Successfully rendered GerberLayerStack to PNG: {tempFilePath}")
+            logging.debug(f"Successfully rendered GerberLayerStack to PNG: {tempFilePath}")
             return tempFilePath
         except Exception as e:
             logging.error(f"Failed to render Gerber layer stack. Exception: {e}")
             raise
-    def processBoundingBox(self, bounding_box):
+
+    def processBoundingBox(self, boundingBox):
         try:
-            min_x = bounding_box['min_x']
-            min_y = bounding_box['min_y']
-            max_x = bounding_box['max_x']
-            max_y = bounding_box['max_y']
-            width = max_x - min_x
-            height = max_y - min_y
-            logging.info(f"Bounding box width: {width}, height {height}")
+            minX = boundingBox['minX']
+            minY = boundingBox['minY']
+            maxX = boundingBox['maxX']
+            maxY = boundingBox['maxY']
+            width = maxX - minX
+            height = maxY - minY
+            logging.debug(f"Bounding box width: {width}, height {height}")
         except KeyError as e:
             logging.error(f"Missing key in bounding box: {e}")
-
-
 
     def getBoundingBox(self):
         if not self.project:
@@ -113,35 +107,102 @@ class GerberWrapper:
             return None
 
         try:
-            all_min_x = []
-            all_min_y = []
-            all_max_x = []
-            all_max_y = []
+            allMinX = []
+            allMinY = []
+            allMaxX = []
+            allMaxY = []
 
-            for gerber_file in self.project.files:
-                parsed_file = gerber_file.parse()
-                file_info = parsed_file.get_info()
-                all_min_x.append(float(file_info.min_x_mm))
-                all_min_y.append(float(file_info.min_y_mm))
-                all_max_x.append(float(file_info.max_x_mm))
-                all_max_y.append(float(file_info.max_y_mm))
+            for gerberFile in self.project.files:
+                parsedFile = gerberFile.parse()
+                fileInfo = parsedFile.get_info()
 
-            min_x = min(all_min_x)
-            min_y = min(all_min_y)
-            max_x = max(all_max_x)
-            max_y = max(all_max_y)
+                allMinX.append(float(fileInfo.min_x_mm))
+                allMinY.append(float(fileInfo.min_y_mm))
+                allMaxX.append(float(fileInfo.max_x_mm))
+                allMaxY.append(float(fileInfo.max_y_mm))
 
-            bounding_box_dict = {
-                "min_x": min_x,
-                "min_y": min_y,
-                "max_x": max_x,
-                "max_y": max_y,
+            minX = min(allMinX)
+            minY = min(allMinY)
+            maxX = max(allMaxX)
+            maxY = max(allMaxY)
+
+            boundingBoxDict = {
+                "minX": minX,
+                "minY": minY,
+                "maxX": maxX,
+                "maxY": maxY,
             }
 
-            self.processBoundingBox(bounding_box_dict)
-            logging.info(f"Bounding box calculated: {bounding_box_dict}")
-            return bounding_box_dict
+            self.processBoundingBox(boundingBoxDict)
+            logging.debug(f"Bounding box calculated: {boundingBoxDict}")
+            return boundingBoxDict
+
         except Exception as e:
             logging.error(f"Failed to fetch bounding box. Exception: {e}")
+            raise
+    def extractPadCoords(self):
+        """
+        Extracts pad coordinates from the copper layer Gerber file.
+
+        Returns:
+            A list of dictionaries containing pad coordinates.
+        """
+        if not self.project:
+            logging.warning("No Gerber files loaded to extract pad coordinates.")
+            return []
+
+        try:
+            padCoords = []
+            copperFile = self.project.files[0]
+            parsedFile = copperFile.parse()
+            #logging.debug(f"Attribute of parsedFile: {dir(parsedFile)})
+
+            for command in parsedFile._command_buffer.commands:
+                if isinstance(command, Flash2):
+                    ##logging.debug(f"Type of flash_point.x: {type(command.flash_point.x)}")
+                    ##logging.debug(f"flash_point.x attributes: {dir(command.flash_point.x)}")
+                    flashX = command.flash_point.x
+                    flashY = command.flash_point.y
+
+                    # Debugging: Print type and attributes
+                    logging.debug(f"flashX: {flashX}, flashY: {flashY}")
+                    logging.debug(f"Type of flashX: {type(flashX)}, Type of flashY: {type(flashY)}")
+                    try:
+                        x = float(flashX.value)
+                        y = float(flashY.value)
+                    except AttributeError as ae:
+                        logging.error(f"Attribute error while extracting float from Offset: {ae}")
+                        continue
+                    except TypeError as te:
+                        logging.error(f"Type error while converting Offset to float: {te}")
+                        continue
+                    except Exception as e:
+                        logging.error(f"Unexpected error while extracting float from Offset: {e}")
+                        continue
+
+                    aperture = command.aperture
+                    logging.debug(f"aperture: {aperture}")
+                    logging.debug(f"Type of aperture: {type(aperture)}")
+                    logging.debug(f"Aperture attributes: {dir(aperture)}")
+
+                    if hasattr(aperture, 'identifier'):
+                        apertureCode = aperture.identifier
+                        logging.debug(f"Retrieved aperture code via 'identifier': {apertureCode}")
+                    else:
+                        apertureCode = "Unknown"
+                        logging.debug("Aperture code could not be retrieved. Set to 'Unknown'.")
+                    padInfo = {
+                        "x": x,
+                        "y": y,
+                        "aperture": apertureCode
+                    }
+                    padCoords.append(padInfo)
+                    logging.debug(f"Pad found at X: {x}, Y: {y}, Aperture: {apertureCode}")
+
+            logging.debug(f"Extracted {len(padCoords)} pad coordinates.")
+            return padCoords
+
+        except Exception as e:
+            logging.error(f"Failed to extract pad coordinates. Exception: {e}")
             raise
 

@@ -1,14 +1,14 @@
 #include "include/gerbermanager.h"
-
 #include <QDebug>
 #include <QFile>
 #include <QPainter>
 namespace py = pybind11;
 
+
 GerberManager::GerberManager() {
     try {
         py::initialize_interpreter();
-
+        gcodeConverter = new GCodeConverter(this);
         PyGILState_STATE gstate = PyGILState_Ensure();
 
         py::module_ sys = py::module_::import("sys");
@@ -40,6 +40,7 @@ GerberManager::~GerberManager() {
     try {
         // Remove the temporary file if it exists
         QFile::remove(QString::fromStdString(tempImagePath));
+        delete gcodeConverter;
         py::finalize_interpreter();
     }
     catch (...) {
@@ -105,8 +106,8 @@ QPixmap GerberManager::renderGerber(int dpmm) {
 }
 
 QList<TestPoint> GerberManager::loadTestPoints(const QString& csvPath){
-    if (gcodeConverter.loadCSVFile(csvPath)){
-        return gcodeConverter.filterTopSidePoints();
+    if (gcodeConverter->loadCSVFile(csvPath)){
+        return gcodeConverter->filterTopSidePoints();
     }
     else{
         qDebug() << "Failed to laod test points from .csv. ";
@@ -189,3 +190,32 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     painter.end();
     return imageTestPoints;
 }
+
+std::vector<PadInfo> GerberManager::getPadCoordinates(){
+    try{
+        py::gil_scoped_acquire acquire;
+        py::object extractPadCoords = gerberStack.attr("extractPadCoords");
+        py::object extractedCords = extractPadCoords();
+        std::vector<PadInfo> padCoords;
+
+        if(py::isinstance<py::sequence>(extractedCords)){ // if returned object is iterable
+            for(auto item : extractedCords){
+                if(py::isinstance<py::dict>(item)){
+                    py::dict padDict = item.cast<py::dict>();
+                    PadInfo pad;
+                    pad.x = padDict["x"].cast<double>();
+                    pad.y = padDict["y"].cast<double>();
+                    pad.aperture = padDict["aperture"].cast<std::string>();
+                    padCoords.emplace_back(pad);
+                }
+            }
+        }
+        return padCoords;
+
+    }
+    catch(const py::error_already_set& e){
+        qDebug() << "Python error while extracting pad coordinates: " << QString::fromStdString(e.what());
+        return {};
+    }
+}
+

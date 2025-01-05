@@ -1,18 +1,19 @@
 #ifndef GERBERMANAGER_H
 #define GERBERMANAGER_H
 #undef slots
-#include <Python.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
-#include "include/gcodeConverter.h"
 #include <QTemporaryFile>
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QString>
 #include <string>
+#include "include/gcodeConverter.h"
 
 
 namespace py = pybind11;
+
+class GCodeConverter;
 
 class GerberManager {
 public:
@@ -25,6 +26,8 @@ public:
     QList<TestPoint> loadTestPoints(const QString& csvPath);
     QPixmap overlayTestPoints(const QPixmap& baseImage, const QList<TestPoint>& points);
     void getBoundingBox();
+    std::vector<PadInfo> getPadCoordinates();
+
 
 
 
@@ -32,8 +35,9 @@ public:
 private:
     py::object gerberStack;
     std::string tempImagePath;
-    GCodeConverter gcodeConverter;
+    GCodeConverter* gcodeConverter;
 
+    std::vector<PadInfo> padCoordinates;
     // Bounding Box coords
     double minX;
     double minY;

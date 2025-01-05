@@ -1,13 +1,15 @@
 #include "include/gcodeConverter.h"
-
+#include "include/gerbermanager.h"
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
 
-GCodeConverter::GCodeConverter()
+GCodeConverter::GCodeConverter(GerberManager* gerberManager):gerberManager(gerberManager)
 {
 
 }
+
+
 
 bool GCodeConverter::loadCSVFile(const QString &filePath)
 {
@@ -64,7 +66,7 @@ QMap<QString, QList<TestPoint>> GCodeConverter::groupByNet(const QList<TestPoint
     return grouped;
 }
 
-QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const
+QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const
 {
     QString gCode;
     gCode += "G21 ; Set units to millimeters\n";
@@ -84,6 +86,44 @@ QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>> &gro
     return gCode;
 }
 
+bool GCodeConverter::extractPadCoords()
+{
+    padCoords = gerberManager->getPadCoordinates();
+
+    if (padCoords.empty()) {
+        qWarning() << "No pad coordinates extracted.";
+        return false;
+    }
+
+    qDebug() << "Extracted pad coordinates successfully:";
+    for (const auto& coord : padCoords) {
+        qDebug() << "XY:(" << coord.x << ", " << coord.y << "), Aperture: " << coord.aperture;
+    }
+    return true;
+}
+
+QString GCodeConverter::generateGcodeFromGerber()
+{
+
+    extractPadCoords();
+    QString gCode;
+    gCode += "G21 ; Set units to millimeters\n";
+    gCode += "G90 ; Absolute positioning\n";
+
+
+    for(const auto& coord : padCoords){
+        double x = coord.x;
+        double y = coord.y;
+        gCode += QString("G0 X%1 Y%2 ; Move to test point\n").arg(x).arg(y);
+        gCode += "G1 Z-1 ; Lower probe\n";
+        gCode += "G1 Z1 ; Raise Probe\n";
+    }
+    gCode += "M30 ; End of Program\n";
+    return gCode;
+}
+
+
+
 bool GCodeConverter::saveGCodeToFile(const QString &filePath, const QString &gCodeContent)
 {
     QFile file(filePath);
@@ -97,3 +137,4 @@ bool GCodeConverter::saveGCodeToFile(const QString &filePath, const QString &gCo
     file.close();
     return true;
 }
+

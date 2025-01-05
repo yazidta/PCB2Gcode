@@ -20,10 +20,11 @@
 
 
 
-
+QT_BEGIN_NAMESPACE
 namespace Ui {
 class PCB2Gcode;
 }
+QT_END_NAMESPACE
 
 class PCB2Gcode : public QMainWindow
 {
@@ -54,11 +55,11 @@ private Q_SLOTS:
 
 private:
     Ui::PCB2Gcode *ui;
-    GCodeConverter gcodeConverter;
     Settings appSettings;
     UART *uart;
     QTabWidget* tabWidget;
-    GerberManager gerberManager;
+    GerberManager *gerberManager;
+    GCodeConverter *gcodeConverter;
     QPixmap  saveImageRendered;
 
     void connectSignals();

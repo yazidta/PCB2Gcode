@@ -5,7 +5,7 @@
 #include <QKeyEvent>
 
 
-PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this)), gerberManager()
+PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcode), uart(new UART(this)), gerberManager(new GerberManager()), gcodeConverter(new GCodeConverter(gerberManager))
 {
     ui->setupUi(this);
 
@@ -17,6 +17,9 @@ PCB2Gcode::PCB2Gcode(QWidget *parent) : QMainWindow(parent), ui(new Ui::PCB2Gcod
 PCB2Gcode::~PCB2Gcode()
 {
     delete ui;
+    delete uart;
+    delete gerberManager;
+    delete gcodeConverter;
 }
 
 void PCB2Gcode::connectSignals()
@@ -116,7 +119,7 @@ void PCB2Gcode::onBrowseSilk()
 void PCB2Gcode::onPreview()
 {
     // Clear any previously loaded files in GerberManager
-    gerberManager.clearGerberFiles();
+    gerberManager->clearGerberFiles();
 
     QString copperFile = ui->copperPath->text();
     QString maskFile = ui->maskPath->text();
@@ -132,7 +135,7 @@ void PCB2Gcode::onPreview()
     QStringList filePaths = { copperFile, maskFile, silkFile, boardFile };
 
     // Load Gerber files
-    if (!gerberManager.loadGerberFiles(filePaths)) {
+    if (!gerberManager->loadGerberFiles(filePaths)) {
         QMessageBox::critical(this, tr("Loading Failed"),
                               tr("An error occurred while loading the Gerber files. Please check the logs for details."));
         return;
@@ -144,7 +147,7 @@ void PCB2Gcode::onPreview()
     progressDialog.show();
 
     // Render Gerber files
-    QPixmap renderedImage = gerberManager.renderGerber(40);
+    QPixmap renderedImage = gerberManager->renderGerber(40);
 
     progressDialog.close();
 
@@ -164,7 +167,7 @@ void PCB2Gcode::onPreview()
 
 void PCB2Gcode::onPreviewTestPoints(){
     onPreview();
-    gerberManager.getBoundingBox();
+    gerberManager->getBoundingBox();
 
     QString testPointsFile = ui->testPointsPath->text();
     if (testPointsFile.isEmpty()) {
@@ -173,7 +176,7 @@ void PCB2Gcode::onPreviewTestPoints(){
         return;
     }
 
-    QList<TestPoint> testPoints = gerberManager.loadTestPoints(testPointsFile);
+    QList<TestPoint> testPoints = gerberManager->loadTestPoints(testPointsFile);
     if (testPoints.isEmpty()) {
         QMessageBox::critical(this, tr("Loading Test Points Failed"),
                               tr("An error occurred while loading test points from the CSV file. Please check the file format and contents."));
@@ -185,7 +188,7 @@ void PCB2Gcode::onPreviewTestPoints(){
         return;
     }
 
-    QPixmap finalImage = gerberManager.overlayTestPoints(saveImageRendered, testPoints);
+    QPixmap finalImage = gerberManager->overlayTestPoints(saveImageRendered, testPoints);
 
     // Display the final image in the UI
     enableToolBar();
@@ -198,7 +201,7 @@ void PCB2Gcode::onPreviewTestPoints(){
 
 
 }
-
+/*
 void PCB2Gcode::onGenerate(){
     QString testPointsFile = ui->testPointsPath->text();
     if (testPointsFile.isEmpty()) {
@@ -221,7 +224,7 @@ void PCB2Gcode::onGenerate(){
 
     QMap<QString, QList<TestPoint>> groupedPoints = gcodeConverter.groupByNet(topSidePoints);
 
-    QString gCode = gcodeConverter.generateGCode(groupedPoints);
+    QString gCode = gcodeConverter.generateGCodeFromCSV(groupedPoints);
 
 
     QString savePath = QFileDialog::getSaveFileName(this, tr("Save G-Code File"), "", tr("G-Code Files (*.gcode)"));
@@ -230,6 +233,42 @@ void PCB2Gcode::onGenerate(){
     }
 
     if (!gcodeConverter.saveGCodeToFile(savePath, gCode)) {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to save G-code file."));
+    } else {
+        QMessageBox::information(this, tr("Success"), tr("G-code generated and saved successfully."));
+    }
+} */
+
+void PCB2Gcode::onGenerate(){
+
+    QString copperFile = ui->copperPath->text();
+    QString maskFile = ui->maskPath->text();
+    QString silkFile = ui->silkPath->text();
+    QString boardFile = ui->boardPath->text();
+
+    if (copperFile.isEmpty() || maskFile.isEmpty() || silkFile.isEmpty() || boardFile.isEmpty()) {
+        QMessageBox::warning(this, tr("Incomplete Selection"),
+                             tr("Please select all Gerber files: Copper Layer, Mask, Silkscreen, and Board Edge Cuts."));
+        return;
+    }
+
+    QStringList filePaths = { copperFile, maskFile, silkFile, boardFile };
+
+    // Load Gerber files
+    if (!gerberManager->loadGerberFiles(filePaths)) {
+        QMessageBox::critical(this, tr("Loading Failed"),
+                              tr("An error occurred while loading the Gerber files. Please check the logs for details."));
+        return;
+    }
+
+    QString gCode = gcodeConverter->generateGcodeFromGerber();
+
+    QString savePath = QFileDialog::getSaveFileName(this, tr("Save G-Code File"), "", tr("G-Code Files (*.gcode)"));
+    if (savePath.isEmpty()) {
+        return;
+    }
+
+    if (!gcodeConverter->saveGCodeToFile(savePath, gCode)) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to save G-code file."));
     } else {
         QMessageBox::information(this, tr("Success"), tr("G-code generated and saved successfully."));
