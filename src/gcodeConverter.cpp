@@ -86,27 +86,43 @@ QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint
     return gCode;
 }
 
-bool GCodeConverter::extractPadCoords()
+bool GCodeConverter::extractPadAndTraceCoords()
 {
-    padCoords = gerberManager->getPadCoordinates();
+    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
 
-    if (padCoords.empty()) {
-        qWarning() << "No pad coordinates extracted.";
+    if (pads.empty() && traces.empty()) {
+        qWarning() << "No pad or trace coordinates extracted.";
         return false;
     }
 
-    qDebug() << "Extracted pad coordinates successfully:";
-    for (const auto& coord : padCoords) {
-        qDebug() << "XY:(" << coord.x << ", " << coord.y << "), Aperture: " << coord.aperture;
+    if (!pads.empty()) {
+        qDebug() << "Extracted pad coordinates successfully:";
+        for (const auto& pad : pads) {
+            qDebug() << "Pad - XY: (" << pad.x << ", " << pad.y << "), Aperture: " << QString::fromStdString(pad.aperture);
+        }
+    } else {
+        qDebug() << "No pad coordinates found.";
     }
+
+    if (!traces.empty()) {
+        qDebug() << "Extracted trace coordinates successfully:";
+        for (const auto& trace : traces) {
+            qDebug() << "Trace - Start: (" << trace.start_x << ", " << trace.start_y
+                     << "), End: (" << trace.end_x << ", " << trace.end_y;
+
+        }
+    } else {
+        qDebug() << "No trace coordinates found.";
+    }
+
     return true;
 }
+
 
 QString GCodeConverter::generateGcodeFromGerber()
 {
 
-    extractPadCoords();
-    QString gCode;
+    extractPadAndTraceCoords();    QString gCode;
     gCode += "G21 ; Set units to millimeters\n";
     gCode += "G90 ; Absolute positioning\n";
 

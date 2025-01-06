@@ -18,7 +18,8 @@ GerberManager::GerberManager() {
 
         // Set the PYTHONPATH environment in Python
         py::list path = sys.attr("path");
-        path.append("C:/Users/ahmed/OneDrive/Desktop/Projects/PCB2Gcode/python"); // 'gerber_wrapper.py' directory
+        path.append("C:/Users/yazed/OneDrive/Desktop/PCB2Gcode/python"); // 'gerber_wrapper.py' directory
+        path.append("C:/Users/yazed/anaconda3/envs/pcb2gcode_env/Lib/site-packages"); // 'gerber_wrapper.py' directory
 
         // Log modified Python path
         qDebug() << "Python path after appending:" << QString::fromStdString(py::str(path).cast<std::string>());
@@ -191,30 +192,57 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     return imageTestPoints;
 }
 
-std::vector<PadInfo> GerberManager::getPadCoordinates(){
-    try{
+std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAndTraceCoordinates() {
+    try {
         py::gil_scoped_acquire acquire;
-        py::object extractPadCoords = gerberStack.attr("extractPadCoords");
-        py::object extractedCords = extractPadCoords();
-        std::vector<PadInfo> padCoords;
+        py::object extractPadAndTraceCoords = gerberStack.attr("extractPadAndTraceCoords");
+        py::object extractedData = extractPadAndTraceCoords();
 
-        if(py::isinstance<py::sequence>(extractedCords)){ // if returned object is iterable
-            for(auto item : extractedCords){
-                if(py::isinstance<py::dict>(item)){
-                    py::dict padDict = item.cast<py::dict>();
-                    PadInfo pad;
-                    pad.x = padDict["x"].cast<double>();
-                    pad.y = padDict["y"].cast<double>();
-                    pad.aperture = padDict["aperture"].cast<std::string>();
-                    padCoords.emplace_back(pad);
+        std::vector<PadInfo> padCoords;
+        std::vector<TraceInfo> traceCoords;
+
+        if (py::isinstance<py::dict>(extractedData)) { // Ensure the return type is a dictionary
+            py::dict dataDict = extractedData.cast<py::dict>();
+
+            // Extract pads
+            if (dataDict.contains("pads")) {
+                py::object padsList = dataDict["pads"];
+                if (py::isinstance<py::sequence>(padsList)) {
+                    for (auto item : padsList) {
+                        if (py::isinstance<py::dict>(item)) {
+                            py::dict padDict = item.cast<py::dict>();
+                            PadInfo pad;
+                            pad.x = padDict["x"].cast<double>();
+                            pad.y = padDict["y"].cast<double>();
+                            pad.aperture = padDict["aperture"].cast<std::string>();
+                            padCoords.emplace_back(pad);
+                        }
+                    }
+                }
+            }
+
+            // Extract traces
+            if (dataDict.contains("traces")) {
+                py::object tracesList = dataDict["traces"];
+                if (py::isinstance<py::sequence>(tracesList)) {
+                    for (auto item : tracesList) {
+                        if (py::isinstance<py::dict>(item)) {
+                            py::dict traceDict = item.cast<py::dict>();
+                            TraceInfo trace;
+                            trace.start_x = traceDict["start_x"].cast<double>();
+                            trace.start_y = traceDict["start_y"].cast<double>();
+                            trace.end_x = traceDict["end_x"].cast<double>();
+                            trace.end_y = traceDict["end_y"].cast<double>();
+                           // trace.width = traceDict["width"].cast<std::string>();
+                            traceCoords.emplace_back(trace);
+                        }
+                    }
                 }
             }
         }
-        return padCoords;
-
-    }
-    catch(const py::error_already_set& e){
-        qDebug() << "Python error while extracting pad coordinates: " << QString::fromStdString(e.what());
+        return {padCoords, traceCoords};
+    } catch (const py::error_already_set& e) {
+        qDebug() << "Python error while extracting pad and trace coordinates: " << QString::fromStdString(e.what());
         return {};
     }
 }

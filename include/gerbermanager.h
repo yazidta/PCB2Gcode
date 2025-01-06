@@ -26,7 +26,7 @@ public:
     QList<TestPoint> loadTestPoints(const QString& csvPath);
     QPixmap overlayTestPoints(const QPixmap& baseImage, const QList<TestPoint>& points);
     void getBoundingBox();
-    std::vector<PadInfo> getPadCoordinates();
+    std::pair<std::vector<PadInfo>, std::vector<TraceInfo>>getPadAndTraceCoordinates();
 
 
 

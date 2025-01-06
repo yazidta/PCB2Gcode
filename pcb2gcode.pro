@@ -25,14 +25,14 @@ PYTHON_VERSION = 3.12  # Adjust this to your installed Python version
 PYTHON_VERSIONLIB = 312  # Adjust this to your installed Python library version(for anaconda there shouldn't be a " . ")
 
 # Conda Environment Path
-CONDA_ENV_PATH = C:/Users/ahmed/.conda/envs/pcb2gcode_env
+CONDA_ENV_PATH = C:\Users\yazed\anaconda3\envs\pcb2gcode_env
 
 # Python Include paths
 INCLUDEPATH += \
     $$CONDA_ENV_PATH/include \
     $$CONDA_ENV_PATH/include/python$$PYTHON_VERSION \
     $$CONDA_ENV_PATH/Lib/site-packages/include \
-    $$CONDA_ENV_PATH/Lib/site-packages/pybind11/include
+    $$CONDA_ENV_PATH/Lib/site-packages/pybind11/include \
 
 # Python Library path
 LIBS += -L$$CONDA_ENV_PATH/libs/ -lpython$$PYTHON_VERSIONLIB

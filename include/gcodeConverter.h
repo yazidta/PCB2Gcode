@@ -24,6 +24,13 @@ struct PadInfo {
     double y;
     std::string aperture;
 };
+struct TraceInfo {
+    double start_x;
+    double start_y;
+    double end_x;
+    double end_y;
+    std::string aperture;
+};
 
 class GerberManager;
 
@@ -37,7 +44,7 @@ public:
     QMap<QString, QList<TestPoint>> groupByNet(const QList<TestPoint> &testPoints) const;
     QString generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const;
     bool saveGCodeToFile(const QString &filePath, const QString &gCodeContent);
-    bool extractPadCoords();
+    bool extractPadAndTraceCoords();
     QString generateGcodeFromGerber();
 
 private:

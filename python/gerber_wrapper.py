@@ -5,11 +5,13 @@ from pygerber.gerberx3.api.v2 import GerberFile, Project, FileTypeEnum
 from pygerber.backend.rasterized_2d.color_scheme import ColorScheme
 from pygerber.gerberx3.api._v2 import ImageFormatEnum, PixelFormatEnum
 from pygerber.common.rgba import RGBA
-
 from pygerber.gerberx3.parser2.attributes2 import ObjectAttributes, ApertureAttributes
 from pygerber.gerberx3.parser2.commands2 import command2
 from pygerber.gerberx3.parser2.commands2.flash2 import Flash2
 from pygerber.gerberx3.parser2.state2 import State2Constants
+from pygerber.gerberx3.parser2.commands2.line2 import Line2
+
+
 
 class GerberWrapper:
     """
@@ -24,9 +26,11 @@ class GerberWrapper:
     def parseGerberFile(self, filePath: str, fileType: FileTypeEnum) -> GerberFile:
         """
         Parses a single Gerber file with the specified file type.
+
         Args:
             filePath: Path to the Gerber file.
             fileType: Type of the Gerber file (e.g., COPPER, MASK, etc.).
+
         Returns:
             A parsed GerberFile instance.
         """
@@ -41,6 +45,7 @@ class GerberWrapper:
     def loadGerberFiles(self, gerberFilePaths: list):
         """
         Loads multiple Gerber files (copper, mask, silk, and edge cuts) into the project.
+
         Args:
             gerberFilePaths: List of file paths to the Gerber files.
         """
@@ -70,8 +75,10 @@ class GerberWrapper:
     def renderToPng(self, dpmm=100):
         """
         Renders the loaded Gerber files to a PNG image, with customized colors.
+
         Args:
             dpmm: Dots per millimeter for rendering resolution. Defaults to 100.
+
         Returns:
             Path to the rendered PNG file.
         """
@@ -140,34 +147,32 @@ class GerberWrapper:
         except Exception as e:
             logging.error(f"Failed to fetch bounding box. Exception: {e}")
             raise
-    def extractPadCoords(self):
+
+    def extractPadAndTraceCoords(self):
         """
-        Extracts pad coordinates from the copper layer Gerber file.
+        Extracts pad and trace coordinates from the copper layer Gerber file.
 
         Returns:
-            A list of dictionaries containing pad coordinates.
+            A dictionary with:
+                - 'pads': A list of dictionaries containing pad coordinates.
+                - 'traces': A list of dictionaries containing trace information.
         """
         if not self.project:
-            logging.warning("No Gerber files loaded to extract pad coordinates.")
-            return []
+            logging.warning("No Gerber files loaded to extract pad and trace coordinates.")
+            return {"pads": [], "traces": []}
 
         try:
             padCoords = []
+            traceCoords = []
             copperFile = self.project.files[0]
             parsedFile = copperFile.parse()
-            #logging.debug(f"Attribute of parsedFile: {dir(parsedFile)})
 
             for command in parsedFile._command_buffer.commands:
                 if isinstance(command, Flash2):
-                    ##logging.debug(f"Type of flash_point.x: {type(command.flash_point.x)}")
-                    ##logging.debug(f"flash_point.x attributes: {dir(command.flash_point.x)}")
-                    flashX = command.flash_point.x
-                    flashY = command.flash_point.y
-
-                    # Debugging: Print type and attributes
-                    logging.debug(f"flashX: {flashX}, flashY: {flashY}")
-                    logging.debug(f"Type of flashX: {type(flashX)}, Type of flashY: {type(flashY)}")
+                    # Process pad (flash) commands
                     try:
+                        flashX = command.flash_point.x
+                        flashY = command.flash_point.y
                         x = float(flashX.value)
                         y = float(flashY.value)
                     except AttributeError as ae:
@@ -181,16 +186,7 @@ class GerberWrapper:
                         continue
 
                     aperture = command.aperture
-                    logging.debug(f"aperture: {aperture}")
-                    logging.debug(f"Type of aperture: {type(aperture)}")
-                    logging.debug(f"Aperture attributes: {dir(aperture)}")
-
-                    if hasattr(aperture, 'identifier'):
-                        apertureCode = aperture.identifier
-                        logging.debug(f"Retrieved aperture code via 'identifier': {apertureCode}")
-                    else:
-                        apertureCode = "Unknown"
-                        logging.debug("Aperture code could not be retrieved. Set to 'Unknown'.")
+                    apertureCode = getattr(aperture, 'identifier', "Unknown")
                     padInfo = {
                         "x": x,
                         "y": y,
@@ -199,10 +195,37 @@ class GerberWrapper:
                     padCoords.append(padInfo)
                     logging.debug(f"Pad found at X: {x}, Y: {y}, Aperture: {apertureCode}")
 
-            logging.debug(f"Extracted {len(padCoords)} pad coordinates.")
-            return padCoords
+                elif isinstance(command, Line2):
+                    # Process line (trace) commands
+                    try:
+                        startX = float(command.start_point.x.value)
+                        startY = float(command.start_point.y.value)
+                        endX = float(command.end_point.x.value)
+                        endY = float(command.end_point.y.value)
+                    except AttributeError as ae:
+                        logging.error(f"Attribute error while extracting float from Offset: {ae}")
+                        continue
+                    except TypeError as te:
+                        logging.error(f"Type error while converting Offset to float: {te}")
+                        continue
+                    except Exception as e:
+                        logging.error(f"Unexpected error while extracting float from Offset: {e}")
+                        continue
+
+                    width = getattr(command, 'width', None)
+                    traceInfo = {
+                        "start_x": startX,
+                        "start_y": startY,
+                        "end_x": endX,
+                        "end_y": endY,
+                        "width": width if width is not None else "Unknown"
+                    }
+                    traceCoords.append(traceInfo)
+                    logging.debug(f"Trace found from ({startX}, {startY}) to ({endX}, {endY}) with width: {width}")
+
+            logging.debug(f"Extracted {len(padCoords)} pad coordinates and {len(traceCoords)} trace coordinates.")
+            return {"pads": padCoords, "traces": traceCoords}
 
         except Exception as e:
-            logging.error(f"Failed to extract pad coordinates. Exception: {e}")
+            logging.error(f"Failed to extract pad and trace coordinates. Exception: {e}")
             raise
-
