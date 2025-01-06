@@ -43,6 +43,7 @@ public:
     QList<TestPoint> filterTopSidePoints() const;
     QMap<QString, QList<TestPoint>> groupByNet(const QList<TestPoint> &testPoints) const;
     QString generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const;
+    std::vector<int> countTracesConnectedToPads() const;
     bool saveGCodeToFile(const QString &filePath, const QString &gCodeContent);
     bool extractPadAndTraceCoords();
     QString generateGcodeFromGerber();
@@ -51,6 +52,7 @@ private:
     QList<TestPoint> testPoints;
     std::vector<PadInfo> padCoords;
     GerberManager* gerberManager;
+    std::vector<TraceInfo> TraceCoords;
 };
 
 #endif // GCODECONVERTER_H

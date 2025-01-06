@@ -36,7 +36,7 @@ private:
     py::object gerberStack;
     std::string tempImagePath;
     GCodeConverter* gcodeConverter;
-
+    std::vector<TraceInfo> TraceCoordinates;
     std::vector<PadInfo> padCoordinates;
     // Bounding Box coords
     double minX;

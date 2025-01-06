@@ -19,7 +19,7 @@ class GerberWrapper:
     """
 
     def __init__(self):
-        logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+        logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
         self.project = None
         logging.debug("GerberWrapper initialized.")
 

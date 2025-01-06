@@ -65,6 +65,44 @@ QMap<QString, QList<TestPoint>> GCodeConverter::groupByNet(const QList<TestPoint
     }
     return grouped;
 }
+std::vector<int> GCodeConverter::countTracesConnectedToPads() const
+{
+    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
+    std::vector<int> padTraceCount;
+    qDebug()<<"the function started" <<pads.size();
+    // Loop through each pad
+    for (size_t padIndex = 0; padIndex < pads.size(); ++padIndex)
+    {
+        const auto& pad = pads[padIndex];
+        int connectedTraces = 0;
+       // qDebug()<<"the function started11111";
+
+        // Loop through each trace
+        for (const auto& trace : traces)
+        {
+            //qDebug()<<"the function started99999";
+
+            // Compare the trace start and end points with the pad coordinates
+            bool isConnectedToStart = std::abs(trace.start_x - pad.x) == 0 &&
+                                      std::abs(trace.start_y - pad.y) == 0;
+
+            bool isConnectedToEnd = std::abs(trace.end_x - pad.x) == 0 &&
+                                    std::abs(trace.end_y - pad.y) == 0;
+
+            if (isConnectedToStart || isConnectedToEnd)
+            {
+                ++connectedTraces;
+            }
+        }
+
+        // Store the count for this pad
+        padTraceCount.emplace_back(connectedTraces);
+        qDebug()<< "Pad at (" << pad.x << ", " << pad.y << ") is connected to "
+                  << connectedTraces << " traces.\n";
+    }
+
+    return padTraceCount;
+}
 
 QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const
 {
@@ -121,8 +159,10 @@ bool GCodeConverter::extractPadAndTraceCoords()
 
 QString GCodeConverter::generateGcodeFromGerber()
 {
+    extractPadAndTraceCoords();
+    QString gCode;
+    countTracesConnectedToPads();
 
-    extractPadAndTraceCoords();    QString gCode;
     gCode += "G21 ; Set units to millimeters\n";
     gCode += "G90 ; Absolute positioning\n";
 

@@ -18,7 +18,7 @@ GerberManager::GerberManager() {
 
         // Set the PYTHONPATH environment in Python
         py::list path = sys.attr("path");
-        path.append("C:/Users/yazed/OneDrive/Desktop/PCB2Gcode/python"); // 'gerber_wrapper.py' directory
+        path.append("D:/github/flyingrobots/PCB2Gcode/python"); // 'gerber_wrapper.py' directory
         path.append("C:/Users/yazed/anaconda3/envs/pcb2gcode_env/Lib/site-packages"); // 'gerber_wrapper.py' directory
 
         // Log modified Python path
@@ -127,10 +127,10 @@ void GerberManager::getBoundingBox(){
         }
 
         // Extract bounding box values
-        minX = boundingBox["min_x"].cast<double>();
-        minY = boundingBox["min_y"].cast<double>();
-        maxX = boundingBox["max_x"].cast<double>();
-        maxY = boundingBox["max_y"].cast<double>();
+        minX = boundingBox["minX"].cast<double>();
+        minY = boundingBox["minY"].cast<double>();
+        maxX = boundingBox["maxX"].cast<double>();
+        maxY = boundingBox["maxY"].cast<double>();
 
         qDebug() << "Bounding Box: min_x=" << minX << " min_y=" << minY << " max_x=" << maxX << " max_y=" << maxY;
     }
@@ -138,6 +138,7 @@ void GerberManager::getBoundingBox(){
         qDebug() << "Python error during fetching bounding box:" << QString::fromStdString(e.what());
     }
 }
+
 
 QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<TestPoint>& points){
     if (baseImage.isNull()){
@@ -200,7 +201,10 @@ std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAnd
 
         std::vector<PadInfo> padCoords;
         std::vector<TraceInfo> traceCoords;
-
+        //double minX = 0;
+        //double minY = 0;
+        getBoundingBox();
+        //qDebug() << "minX = " << minX << ", minY = " << minY;
         if (py::isinstance<py::dict>(extractedData)) { // Ensure the return type is a dictionary
             py::dict dataDict = extractedData.cast<py::dict>();
 
@@ -212,8 +216,8 @@ std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAnd
                         if (py::isinstance<py::dict>(item)) {
                             py::dict padDict = item.cast<py::dict>();
                             PadInfo pad;
-                            pad.x = padDict["x"].cast<double>();
-                            pad.y = padDict["y"].cast<double>();
+                            pad.x = padDict["x"].cast<double>()- minX;
+                            pad.y = padDict["y"].cast<double>()- minY;
                             pad.aperture = padDict["aperture"].cast<std::string>();
                             padCoords.emplace_back(pad);
                         }
@@ -229,10 +233,10 @@ std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAnd
                         if (py::isinstance<py::dict>(item)) {
                             py::dict traceDict = item.cast<py::dict>();
                             TraceInfo trace;
-                            trace.start_x = traceDict["start_x"].cast<double>();
-                            trace.start_y = traceDict["start_y"].cast<double>();
-                            trace.end_x = traceDict["end_x"].cast<double>();
-                            trace.end_y = traceDict["end_y"].cast<double>();
+                            trace.start_x = traceDict["start_x"].cast<double>() - minX  ;
+                            trace.start_y =traceDict["start_y"].cast<double>() -minY;
+                            trace.end_x = traceDict["end_x"].cast<double>() - minX;
+                            trace.end_y =  traceDict["end_y"].cast<double>()-minY;
                            // trace.width = traceDict["width"].cast<std::string>();
                             traceCoords.emplace_back(trace);
                         }
