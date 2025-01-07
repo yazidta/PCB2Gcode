@@ -193,13 +193,13 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     return imageTestPoints;
 }
 
-std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAndTraceCoordinates() {
+std::pair<std::vector<TestPoint>, std::vector<TraceInfo>> GerberManager::getPadAndTraceCoordinates() {
     try {
         py::gil_scoped_acquire acquire;
         py::object extractPadAndTraceCoords = gerberStack.attr("extractPadAndTraceCoords");
         py::object extractedData = extractPadAndTraceCoords();
 
-        std::vector<PadInfo> padCoords;
+        std::vector<TestPoint> padCoords;
         std::vector<TraceInfo> traceCoords;
         //double minX = 0;
         //double minY = 0;
@@ -215,10 +215,10 @@ std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAnd
                     for (auto item : padsList) {
                         if (py::isinstance<py::dict>(item)) {
                             py::dict padDict = item.cast<py::dict>();
-                            PadInfo pad;
+                            TestPoint pad;
                             pad.x = padDict["x"].cast<double>()- minX;
                             pad.y = padDict["y"].cast<double>()- minY;
-                            pad.aperture = padDict["aperture"].cast<std::string>();
+                            //pad.aperture = padDict["aperture"].cast<std::string>();
                             padCoords.emplace_back(pad);
                         }
                     }
@@ -233,10 +233,10 @@ std::pair<std::vector<PadInfo>, std::vector<TraceInfo>> GerberManager::getPadAnd
                         if (py::isinstance<py::dict>(item)) {
                             py::dict traceDict = item.cast<py::dict>();
                             TraceInfo trace;
-                            trace.start_x = traceDict["start_x"].cast<double>() - minX  ;
-                            trace.start_y =traceDict["start_y"].cast<double>() -minY;
-                            trace.end_x = traceDict["end_x"].cast<double>() - minX;
-                            trace.end_y =  traceDict["end_y"].cast<double>()-minY;
+                            trace.start_x = traceDict["start_x"].cast<double>()   ;
+                            trace.start_y =traceDict["start_y"].cast<double>() ;
+                            trace.end_x = traceDict["end_x"].cast<double>() ;
+                            trace.end_y =  traceDict["end_y"].cast<double>();
                            // trace.width = traceDict["width"].cast<std::string>();
                             traceCoords.emplace_back(trace);
                         }

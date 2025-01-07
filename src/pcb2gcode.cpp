@@ -224,7 +224,7 @@ void PCB2Gcode::onGenerateFromCSV(){
         return;
     }
 
-    QMap<QString, QList<TestPoint>> groupedPoints = gcodeConverter->groupByNet(topSidePoints);
+    QMap<QString, QList<TestPoint>> groupedPoints = gcodeConverter->DeletePoints(topSidePoints);
 
     QString gCode = gcodeConverter->generateGCodeFromCSV(groupedPoints);
 

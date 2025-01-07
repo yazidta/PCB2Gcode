@@ -103,6 +103,40 @@ std::vector<int> GCodeConverter::countTracesConnectedToPads() const
 
     return padTraceCount;
 }
+QMap<QString, QList<TestPoint>> GCodeConverter::DeletePoints(const QList<TestPoint> &testPoints) const {
+    // Retrieve pad and trace coordinates from the gerberManager
+    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
+
+    QMap<QString, QList<TestPoint>> optimized;
+
+    // Iterate over all TestPoints
+    for (const TestPoint &tp : testPoints) {
+        int connectedTraces = 0;
+
+        // Check connections between the TestPoint and traces
+        for (const auto& trace : traces) {
+            bool isConnectedToStart = std::abs(trace.start_x - tp.x) == 0 &&
+                                      std::abs(trace.start_y - tp.y) == 0;
+
+            bool isConnectedToEnd = std::abs(trace.end_x - tp.x) == 0 &&
+                                    std::abs(trace.end_y - tp.y) == 0;
+            qDebug()<< "(Trace startx :"<<trace.start_x<<"Trace startY : "<<trace.start_y<<")  (Trace endx :"<<trace.end_x<<"Trace endY : "<<trace.end_y;
+            if (isConnectedToStart || isConnectedToEnd) {
+                ++connectedTraces;
+            }
+        }
+
+        // Add TestPoint to optimized if it connects to 1 or fewer traces
+        if (connectedTraces <= 1) {
+            qDebug()<<"X coordinate: "<<tp.x<<"y coordinates: "<<tp.y;
+            optimized[tp.net].append(tp);
+        }
+    }
+
+    return optimized;
+}
+
+
 
 QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const
 {
@@ -136,7 +170,7 @@ bool GCodeConverter::extractPadAndTraceCoords()
     if (!pads.empty()) {
         qDebug() << "Extracted pad coordinates successfully:";
         for (const auto& pad : pads) {
-            qDebug() << "Pad - XY: (" << pad.x << ", " << pad.y << "), Aperture: " << QString::fromStdString(pad.aperture);
+            qDebug() << "Pad - XY: (" << pad.x << ", " << pad.y << "), Aperture: ";
         }
     } else {
         qDebug() << "No pad coordinates found.";

@@ -17,12 +17,14 @@ struct TestPoint {
     double y;
     QString padType;
     QString footprintSide;
+    int numTraces;
 };
 
 struct PadInfo {
     double x;
     double y;
     std::string aperture;
+    QString net;
 };
 struct TraceInfo {
     double start_x;
@@ -46,6 +48,8 @@ public:
     std::vector<int> countTracesConnectedToPads() const;
     bool saveGCodeToFile(const QString &filePath, const QString &gCodeContent);
     bool extractPadAndTraceCoords();
+    QMap<QString, QList<TestPoint>>DeletePoints(const QList<TestPoint> &testPoints) const;
+
     QString generateGcodeFromGerber();
 
 private:
