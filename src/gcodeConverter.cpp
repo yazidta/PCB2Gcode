@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+#include <QQueue>
 
 GCodeConverter::GCodeConverter(GerberManager* gerberManager):gerberManager(gerberManager)
 {
@@ -21,7 +22,6 @@ bool GCodeConverter::loadCSVFile(const QString &filePath)
 
     QTextStream in(&file);
     QString headerLine = in.readLine(); // Skip header
-
     while (!in.atEnd()) {
         QString line = in.readLine();
         QStringList parts = line.split(',');
@@ -29,32 +29,25 @@ bool GCodeConverter::loadCSVFile(const QString &filePath)
         if (parts.size() != 9) continue;
 
         TestPoint tp;
-        tp.sourceRefDes = parts[0].remove('"');
-        tp.sourcePad = parts[1].remove('"');
+        tp.source = parts[0].remove('"');
+        tp.pin = parts[1].toInt();
         tp.net = parts[2].remove('"');
-        tp.netClass = parts[3].remove('"');
-        tp.side = parts[4].remove('"');
-        tp.x = parts[5].toDouble();
-        tp.y = parts[6].toDouble();
-        tp.padType = parts[7].remove('"');
-        tp.footprintSide = parts[8].remove('"');
-
-        testPoints.append(tp);
+        tp.x = parts[5].toDouble() - 130.4005; // Subtracting boundBox o
+        tp.y = parts[6].toDouble() - -134.5995;
+        tp.type = parts[7].remove('"');
+        testPointsCSV.append(tp);
     }
 
     file.close();
     return true;
 }
-
-QList<TestPoint> GCodeConverter::filterTopSidePoints() const
+QList<TestPoint> GCodeConverter::getTestPointsCSV()
 {
-    QList<TestPoint> filtered;
-    for (const TestPoint &tp : testPoints) {
-        if (tp.side == "TOP") {
-            filtered.append(tp);
-        }
-    }
-    return filtered;
+    return testPointsCSV;
+}
+QList<TestPoint> GCodeConverter::getTestPointsGerber(){
+    testPointsGerber = gerberManager->getPadInfo();
+    return testPointsGerber;
 }
 
 QMap<QString, QList<TestPoint>> GCodeConverter::groupByNet(const QList<TestPoint> &testPoints) const
@@ -65,81 +58,208 @@ QMap<QString, QList<TestPoint>> GCodeConverter::groupByNet(const QList<TestPoint
     }
     return grouped;
 }
-std::vector<int> GCodeConverter::countTracesConnectedToPads() const
-{
-    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
-    std::vector<int> padTraceCount;
-    qDebug()<<"the function started" <<pads.size();
-    // Loop through each pad
-    for (size_t padIndex = 0; padIndex < pads.size(); ++padIndex)
-    {
-        const auto& pad = pads[padIndex];
-        int connectedTraces = 0;
-       // qDebug()<<"the function started11111";
 
-        // Loop through each trace
-        for (const auto& trace : traces)
-        {
-            //qDebug()<<"the function started99999";
-
-            // Compare the trace start and end points with the pad coordinates
-            bool isConnectedToStart = std::abs(trace.start_x - pad.x) == 0 &&
-                                      std::abs(trace.start_y - pad.y) == 0;
-
-            bool isConnectedToEnd = std::abs(trace.end_x - pad.x) == 0 &&
-                                    std::abs(trace.end_y - pad.y) == 0;
-
-            if (isConnectedToStart || isConnectedToEnd)
-            {
-                ++connectedTraces;
-            }
-        }
-
-        // Store the count for this pad
-        padTraceCount.emplace_back(connectedTraces);
-        qDebug()<< "Pad at (" << pad.x << ", " << pad.y << ") is connected to "
-                  << connectedTraces << " traces.\n";
-    }
-
-    return padTraceCount;
-}
-QMap<QString, QList<TestPoint>> GCodeConverter::DeletePoints(const QList<TestPoint> &testPoints) const {
-    // Retrieve pad and trace coordinates from the gerberManager
-    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
-
+QMap<QString, QList<TestPoint>> GCodeConverter::prioritizeEdgesAndSingleTracePoints(const QList<TestPoint> &testPoints) const {
+    QMap<QString, QList<TestPoint>> groupedTestPoints = groupByNet(testPoints);
     QMap<QString, QList<TestPoint>> optimized;
 
-    // Iterate over all TestPoints
-    for (const TestPoint &tp : testPoints) {
-        int connectedTraces = 0;
+    auto traces = gerberManager->getTraceCoords(); // Load traces once at the start
+    const double TOLERANCE = 1e-4;
 
-        // Check connections between the TestPoint and traces
-        for (const auto& trace : traces) {
-            bool isConnectedToStart = std::abs(trace.start_x - tp.x) == 0 &&
-                                      std::abs(trace.start_y - tp.y) == 0;
+    for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
+        const QList<TestPoint> &netTestPoints = it.value();
+        QMap<int, TestPoint> pointIndexMap;
+        for (int i = 0; i < netTestPoints.size(); ++i) {
+            pointIndexMap[i] = netTestPoints[i];
+        }
 
-            bool isConnectedToEnd = std::abs(trace.end_x - tp.x) == 0 &&
-                                    std::abs(trace.end_y - tp.y) == 0;
-            qDebug()<< "(Trace startx :"<<trace.start_x<<"Trace startY : "<<trace.start_y<<")  (Trace endx :"<<trace.end_x<<"Trace endY : "<<trace.end_y;
-            if (isConnectedToStart || isConnectedToEnd) {
-                ++connectedTraces;
+        QMap<int, QList<int>> adjacencyList;
+
+        QMap<QPair<double, double>, int> virtualNodeMap;
+        int nextVirtualNode = netTestPoints.size();
+
+        for (const auto &trace : traces) {
+            QList<int> startMatches, endMatches;
+
+            for (int i = 0; i < netTestPoints.size(); ++i) {
+                const auto &tp = netTestPoints[i];
+                if (std::abs(tp.x - trace.startX) < TOLERANCE && std::abs(tp.y - trace.startY) < TOLERANCE) {
+                    startMatches.append(i);
+                }
+                if (std::abs(tp.x - trace.endX) < TOLERANCE && std::abs(tp.y - trace.endY) < TOLERANCE) {
+                    endMatches.append(i);
+                }
+            }
+
+            if (startMatches.isEmpty()) {
+                QPair<double, double> startCoord = {trace.startX, trace.startY};
+                if (!virtualNodeMap.contains(startCoord)) {
+                    virtualNodeMap[startCoord] = nextVirtualNode++;
+                }
+                startMatches.append(virtualNodeMap[startCoord]);
+            }
+
+            if (endMatches.isEmpty()) {
+                QPair<double, double> endCoord = {trace.endX, trace.endY};
+                if (!virtualNodeMap.contains(endCoord)) {
+                    virtualNodeMap[endCoord] = nextVirtualNode++;
+                }
+                endMatches.append(virtualNodeMap[endCoord]);
+            }
+
+            for (int startIndex : startMatches) {
+                for (int endIndex : endMatches) {
+                    if (startIndex != endIndex) {
+                        adjacencyList[startIndex].append(endIndex);
+                        adjacencyList[endIndex].append(startIndex);
+                    }
+                }
             }
         }
 
-        // Add TestPoint to optimized if it connects to 1 or fewer traces
-        if (connectedTraces <= 1) {
-            qDebug()<<"X coordinate: "<<tp.x<<"y coordinates: "<<tp.y;
-            optimized[tp.net].append(tp);
+        if (netTestPoints.isEmpty()) {
+            continue;
         }
+
+        auto bfs = [&](int startNode) -> QPair<int, int> {
+            QMap<int, int> distances;
+            QQueue<int> queue;
+
+            for (int i = 0; i < nextVirtualNode; ++i) {
+                distances[i] = -1;
+            }
+            queue.enqueue(startNode);
+            distances[startNode] = 0;
+
+            int farthestNode = startNode;
+            while (!queue.isEmpty()) {
+                int currentNode = queue.dequeue();
+
+                for (int neighbor : adjacencyList[currentNode]) {
+                    if (distances[neighbor] == -1) {
+                        distances[neighbor] = distances[currentNode] + 1;
+                        queue.enqueue(neighbor);
+
+                        if (distances[neighbor] > distances[farthestNode]) {
+                            farthestNode = neighbor;
+                        }
+                    }
+                }
+            }
+            return {farthestNode, distances[farthestNode]};
+        };
+
+        auto [farthestA, _] = bfs(0);
+        auto [farthestB, __] = bfs(farthestA);
+
+        TestPoint edgeA = pointIndexMap.contains(farthestA) ? pointIndexMap[farthestA] : TestPoint{};
+        TestPoint edgeB = pointIndexMap.contains(farthestB) ? pointIndexMap[farthestB] : TestPoint{};
+
+        QList<TestPoint> singleTracePoints;
+        QSet<QPair<double, double>> uniqueCoordinates;
+
+        if (edgeA.x != 0 || edgeA.y != 0) {
+            singleTracePoints.append(edgeA);
+            uniqueCoordinates.insert({edgeA.x, edgeA.y});
+        }
+        if (edgeB.x != 0 || edgeB.y != 0) {
+            singleTracePoints.append(edgeB);
+            uniqueCoordinates.insert({edgeB.x, edgeB.y});
+        }
+
+        for (const auto &tp : netTestPoints) {
+            QPair<double, double> coord = {tp.x, tp.y};
+            if (uniqueCoordinates.contains(coord)) {
+                continue;
+            }
+
+            int connectedTraces = 0;
+            for (const auto &trace : traces) {
+                bool isConnectedToStart = std::abs(trace.startX - tp.x) < TOLERANCE &&
+                                          std::abs(trace.startY - tp.y) < TOLERANCE;
+                bool isConnectedToEnd = std::abs(trace.endX - tp.x) < TOLERANCE &&
+                                        std::abs(trace.endY - tp.y) < TOLERANCE;
+
+                if (isConnectedToStart || isConnectedToEnd) {
+                    ++connectedTraces;
+                }
+            }
+
+            if (connectedTraces == 1) {
+                singleTracePoints.append(tp);
+                uniqueCoordinates.insert(coord);
+            }
+        }
+
+        optimized[it.key()] = singleTracePoints;
     }
 
     return optimized;
 }
+QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
+    QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints;
+
+    // Flatten the grouped test points
+    QList<TestPoint> allTestPoints;
+    for (const auto& sublist : groupedTestPoints.values()) {
+        allTestPoints.append(sublist);
+    }
+
+    // Get the prioritized edge points for each net
+    QMap<QString, QList<TestPoint>> prioritizedEdges = prioritizeEdgesAndSingleTracePoints(allTestPoints);
+
+    for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
+        const QList<TestPoint>& netTestPoints = it.value();
+        QList<TestPoint> upperProbePoints;
+        QList<TestPoint> lowerProbePoints;
+
+        if (netTestPoints.isEmpty()) {
+            continue;
+        }
+
+        // Extract the two farthest points for this net
+        QList<TestPoint> edgePoints = prioritizedEdges.value(it.key());
+        if (edgePoints.size() >= 2) {
+            upperProbePoints.append(edgePoints[0]); // Farthest point A
+            lowerProbePoints.append(edgePoints[1]); // Farthest point B
+        }
+
+        // Divide remaining test points based on Y-coordinate
+        for (const TestPoint& tp : netTestPoints) {
+            if (tp.x == edgePoints[0].x && tp.y == edgePoints[0].y ||
+                tp.x == edgePoints[1].x && tp.y == edgePoints[1].y) {
+                continue; // Skip the endpoints already assigned
+            }
+
+            if (tp.y >= (edgePoints[0].y + edgePoints[1].y) / 2) {
+                upperProbePoints.append(tp);
+            } else {
+                lowerProbePoints.append(tp);
+            }
+        }
+
+        dividedTestPoints[it.key()] = qMakePair(upperProbePoints, lowerProbePoints);
+    }
+
+    return dividedTestPoints;
+}
 
 
 
-QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const
+
+
+
+
+
+
+
+
+
+
+
+QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const
 {
+
     QString gCode;
     gCode += "G21 ; Set units to millimeters\n";
     gCode += "G90 ; Absolute positioning\n";
@@ -155,60 +275,6 @@ QString GCodeConverter::generateGCodeFromCSV(const QMap<QString, QList<TestPoint
     }
 
     gCode += "M30 ; End of program\n";
-    return gCode;
-}
-
-bool GCodeConverter::extractPadAndTraceCoords()
-{
-    auto [pads, traces] = gerberManager->getPadAndTraceCoordinates();
-
-    if (pads.empty() && traces.empty()) {
-        qWarning() << "No pad or trace coordinates extracted.";
-        return false;
-    }
-
-    if (!pads.empty()) {
-        qDebug() << "Extracted pad coordinates successfully:";
-        for (const auto& pad : pads) {
-            qDebug() << "Pad - XY: (" << pad.x << ", " << pad.y << "), Aperture: ";
-        }
-    } else {
-        qDebug() << "No pad coordinates found.";
-    }
-
-    if (!traces.empty()) {
-        qDebug() << "Extracted trace coordinates successfully:";
-        for (const auto& trace : traces) {
-            qDebug() << "Trace - Start: (" << trace.start_x << ", " << trace.start_y
-                     << "), End: (" << trace.end_x << ", " << trace.end_y;
-
-        }
-    } else {
-        qDebug() << "No trace coordinates found.";
-    }
-
-    return true;
-}
-
-
-QString GCodeConverter::generateGcodeFromGerber()
-{
-    extractPadAndTraceCoords();
-    QString gCode;
-    countTracesConnectedToPads();
-
-    gCode += "G21 ; Set units to millimeters\n";
-    gCode += "G90 ; Absolute positioning\n";
-
-
-    for(const auto& coord : padCoords){
-        double x = coord.x;
-        double y = coord.y;
-        gCode += QString("G0 X%1 Y%2 ; Move to test point\n").arg(x).arg(y);
-        gCode += "G1 Z-1 ; Lower probe\n";
-        gCode += "G1 Z1 ; Raise Probe\n";
-    }
-    gCode += "M30 ; End of Program\n";
     return gCode;
 }
 

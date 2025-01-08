@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QPainter>
+#include <QString>
 namespace py = pybind11;
 
 
@@ -20,7 +21,6 @@ GerberManager::GerberManager() {
         py::list path = sys.attr("path");
         path.append("D:/github/flyingrobots/PCB2Gcode/python"); // 'gerber_wrapper.py' directory
         path.append("C:/Users/yazed/anaconda3/envs/pcb2gcode_env/Lib/site-packages"); // 'gerber_wrapper.py' directory
-
         // Log modified Python path
         qDebug() << "Python path after appending:" << QString::fromStdString(py::str(path).cast<std::string>());
 
@@ -28,7 +28,7 @@ GerberManager::GerberManager() {
         py::module_ gerberWrapper = py::module_::import("gerber_wrapper");
 
         // Instantiate the GerberWrapper class
-        gerberStack  = gerberWrapper.attr("GerberWrapper")();
+        GerberWrapper  = gerberWrapper.attr("GerberWrapper")();
 
         PyGILState_Release(gstate);
     }
@@ -56,7 +56,7 @@ bool GerberManager::loadGerberFiles(const QStringList& filePaths) {
         for (const QString& path : filePaths) {
             py_file_paths.append(path.toStdString());
         }
-        gerberStack.attr("loadGerberFiles")(py_file_paths);
+        GerberWrapper.attr("loadGerberFiles")(py_file_paths);
         qDebug() << "Gerber files loaded successfully.";
         return true;
     }
@@ -68,7 +68,7 @@ bool GerberManager::loadGerberFiles(const QStringList& filePaths) {
 
 void GerberManager::clearGerberFiles() {
     try {
-        gerberStack.attr("clearGerberFiles")();
+        GerberWrapper.attr("clearGerberFiles")();
         qDebug() << "Cleared all loaded Gerber files.";
     } catch (const py::error_already_set& e) {
         qDebug() << "Python error while clearing Gerber files:" << QString::fromStdString(e.what());
@@ -79,7 +79,7 @@ QPixmap GerberManager::renderGerber(int dpmm) {
     try {
         py::gil_scoped_acquire acquire;
 
-        py::object pyRenderToPng = gerberStack.attr("renderToPng");
+        py::object pyRenderToPng = GerberWrapper.attr("renderToPng");
         std::string tempFilePath = pyRenderToPng(dpmm).cast<std::string>();
 
         if (tempFilePath.empty()) {
@@ -106,19 +106,10 @@ QPixmap GerberManager::renderGerber(int dpmm) {
     }
 }
 
-QList<TestPoint> GerberManager::loadTestPoints(const QString& csvPath){
-    if (gcodeConverter->loadCSVFile(csvPath)){
-        return gcodeConverter->filterTopSidePoints();
-    }
-    else{
-        qDebug() << "Failed to laod test points from .csv. ";
-        return {};
-    }
-}
 void GerberManager::getBoundingBox(){
     try{
         py::gil_scoped_acquire aquire;
-        py::object pyGetBoundingBox = gerberStack.attr("getBoundingBox");
+        py::object pyGetBoundingBox = GerberWrapper.attr("getBoundingBox");
         py::object boundingBox = pyGetBoundingBox();
 
         if (boundingBox.is_none()) {
@@ -139,8 +130,8 @@ void GerberManager::getBoundingBox(){
     }
 }
 
-
 QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<TestPoint>& points){
+
     if (baseImage.isNull()){
         qDebug() << "Base image is null.";
         return baseImage;
@@ -149,19 +140,19 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     qDebug() << "Base image size: width = " << imageSize.width() << ", height =" << imageSize.height();
     qDebug() << "Bounding box: min_x = " << minX << ", min_y = " << minY << ", max_x = " << maxX << ", max_y = " << maxY;
 
-    double imageWidthMM = maxX - minX;
-    double imageHeightMM = maxY - minY;
+    double pcbbWidthMM = maxX - minX;
+    double pcbHeightMM = maxY - minY;
 
 
-    qDebug() << "PCB width in mm: " << imageWidthMM << ", height in mm: " << imageHeightMM;
+    qDebug() << "PCB width in mm: " << pcbbWidthMM << ", height in mm: " << pcbbWidthMM;
 
-    if (imageWidthMM <= 0 || imageHeightMM <= 0) {
+    if (pcbbWidthMM <= 0 || pcbHeightMM <= 0) {
         qDebug() << "Invalid bounding box dimensions.";
         return baseImage;
     }
 
-    double scaleX = imageSize.width() / imageWidthMM;
-    double scaleY = imageSize.height() / imageHeightMM;
+    double scaleX = imageSize.width() / pcbbWidthMM;
+    double scaleY = imageSize.height() / pcbHeightMM;
 
     qDebug() << "ScaleX: " << scaleX << ", ScaleY: " << scaleY;
 
@@ -174,12 +165,12 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     QBrush brush(Qt::yellow);
     painter.setBrush(brush);
     for (const auto& tp : points) {
-        double scaledX = (tp.x - minX) * scaleX;
-        double scaledY = imageSize.height() - ((tp.y - minY) * scaleY);
+        double scaledX = (tp.x * scaleX); // Already subtracted minX and mixY from GerberWrapepr so we add them for rendering
+        double scaledY = imageSize.height() - (tp.y * scaleY) ;
         qDebug() << "Original coordinates (" << tp.x << "," << tp.y << ") scaled to: (" << scaledX << "," << scaledY << ")";
 
         if (scaledX < 0 || scaledX >= imageSize.width() || scaledY < 0 || scaledY >= imageSize.height()) {
-            qDebug() << "Point out of bounds: (" << scaledX << "," << scaledY << ")";
+            qDebug() << "Point out of bounds: (" << scaledX << "," << scaledY << "), Image Width: " << imageSize.width() << " Image Height: " << imageSize.height();
         }
         else {
             qDebug() << "Drawing point at scaled coordinates (" << scaledX << "," << scaledY << ")";
@@ -193,61 +184,67 @@ QPixmap GerberManager::overlayTestPoints(const QPixmap& baseImage, const QList<T
     return imageTestPoints;
 }
 
-std::pair<std::vector<TestPoint>, std::vector<TraceInfo>> GerberManager::getPadAndTraceCoordinates() {
-    try {
+
+QList<TestPoint> GerberManager::getPadInfo(){
+    try{
         py::gil_scoped_acquire acquire;
-        py::object extractPadAndTraceCoords = gerberStack.attr("extractPadAndTraceCoords");
-        py::object extractedData = extractPadAndTraceCoords();
+        py::object extractPadInfo = GerberWrapper.attr("extractPadInfo");
+        py::object extractedInfo= extractPadInfo();
+        QList<TestPoint> padInfo;
 
-        std::vector<TestPoint> padCoords;
-        std::vector<TraceInfo> traceCoords;
-        //double minX = 0;
-        //double minY = 0;
-        getBoundingBox();
-        //qDebug() << "minX = " << minX << ", minY = " << minY;
-        if (py::isinstance<py::dict>(extractedData)) { // Ensure the return type is a dictionary
-            py::dict dataDict = extractedData.cast<py::dict>();
-
-            // Extract pads
-            if (dataDict.contains("pads")) {
-                py::object padsList = dataDict["pads"];
-                if (py::isinstance<py::sequence>(padsList)) {
-                    for (auto item : padsList) {
-                        if (py::isinstance<py::dict>(item)) {
-                            py::dict padDict = item.cast<py::dict>();
-                            TestPoint pad;
-                            pad.x = padDict["x"].cast<double>()- minX;
-                            pad.y = padDict["y"].cast<double>()- minY;
-                            //pad.aperture = padDict["aperture"].cast<std::string>();
-                            padCoords.emplace_back(pad);
-                        }
-                    }
-                }
-            }
-
-            // Extract traces
-            if (dataDict.contains("traces")) {
-                py::object tracesList = dataDict["traces"];
-                if (py::isinstance<py::sequence>(tracesList)) {
-                    for (auto item : tracesList) {
-                        if (py::isinstance<py::dict>(item)) {
-                            py::dict traceDict = item.cast<py::dict>();
-                            TraceInfo trace;
-                            trace.start_x = traceDict["start_x"].cast<double>()   ;
-                            trace.start_y =traceDict["start_y"].cast<double>() ;
-                            trace.end_x = traceDict["end_x"].cast<double>() ;
-                            trace.end_y =  traceDict["end_y"].cast<double>();
-                           // trace.width = traceDict["width"].cast<std::string>();
-                            traceCoords.emplace_back(trace);
-                        }
-                    }
+        if(py::isinstance<py::sequence>(extractedInfo)){ // if returned object is iterable
+            for(auto item : extractedInfo){
+                if(py::isinstance<py::dict>(item)){
+                    py::dict padDict = item.cast<py::dict>();
+                    TestPoint pad;
+                    pad.x = padDict["x"].cast<double>();
+                    pad.y = padDict["y"].cast<double>();
+                    //pad.aperture = padDict["aperture"].cast<QString>();
+                    pad.type = QString::fromStdString(padDict["type"].cast<std::string>());
+                    pad.net = QString::fromStdString(padDict["net"].cast<std::string>());
+                    pad.source = QString::fromStdString(padDict["source"].cast<std::string>());
+                    pad.pin = padDict["pin"].cast<int>();
+                    padInfo.emplace_back(pad);
                 }
             }
         }
-        return {padCoords, traceCoords};
-    } catch (const py::error_already_set& e) {
-        qDebug() << "Python error while extracting pad and trace coordinates: " << QString::fromStdString(e.what());
+        return padInfo;
+
+    }
+    catch(const py::error_already_set& e){
+        qDebug() << "Python error while extracting pad coordinates: " << QString::fromStdString(e.what());
         return {};
     }
 }
 
+QList<Trace> GerberManager::getTraceCoords(){
+    try{
+        py::gil_scoped_acquire acquire;
+        py::object extractTraceCoords = GerberWrapper.attr("extractTraceCoords");
+        py::object extractedCoords= extractTraceCoords();
+        QList<Trace> traceCoords;
+        if(py::isinstance<py::sequence>(extractedCoords)){
+            for(auto item : extractedCoords){
+                if(py::isinstance<py::dict>(item)){
+
+                    py::dict coordinate = item.cast<py::dict>();
+                    Trace trace;
+                    trace.startX = coordinate["startX"].cast<double>();
+                    trace.startY = coordinate["startY"].cast<double>();
+                    trace.endX = coordinate["endX"].cast<double>();
+                    trace.endY = coordinate["endY"].cast<double>();
+                    trace.net = QString::fromStdString(coordinate["net"].cast<std::string>());
+                    traceCoords.emplace_back(trace);
+                    qDebug() << "StartXY: (" << trace.startX << ", " << trace.startY << ") EndXY: (" << trace.endX << ", " << trace.endY << "), Net: " << trace.net;
+                }
+            }
+        }
+        return traceCoords;
+    }
+    catch(const py::error_already_set& e){
+        qDebug() << "Python error while extracting trace coordinates: " << QString::fromStdString(e.what());
+        return {};
+        }
+
+
+}

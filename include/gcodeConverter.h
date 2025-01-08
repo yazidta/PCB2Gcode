@@ -7,32 +7,25 @@
 #include <QMap>
 
 
-struct TestPoint {
-    QString sourceRefDes;
-    QString sourcePad;
-    QString net;
-    QString netClass;
-    QString side;
+struct TestPoint{
     double x;
     double y;
-    QString padType;
-    QString footprintSide;
-    int numTraces;
+    QString source;
+    QString type;
+    QString net;
+    int pin;
+
 };
 
-struct PadInfo {
-    double x;
-    double y;
-    std::string aperture;
+struct Trace{
+    double startX;
+    double startY;
+    double endX;
+    double endY;
     QString net;
+
 };
-struct TraceInfo {
-    double start_x;
-    double start_y;
-    double end_x;
-    double end_y;
-    std::string aperture;
-};
+
 
 class GerberManager;
 
@@ -42,21 +35,20 @@ public:
     explicit GCodeConverter(GerberManager* gerberManager);
 
     bool loadCSVFile(const QString &filePath);
-    QList<TestPoint> filterTopSidePoints() const;
-    QMap<QString, QList<TestPoint>> groupByNet(const QList<TestPoint> &testPoints) const;
-    QString generateGCodeFromCSV(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const;
-    std::vector<int> countTracesConnectedToPads() const;
     bool saveGCodeToFile(const QString &filePath, const QString &gCodeContent);
-    bool extractPadAndTraceCoords();
-    QMap<QString, QList<TestPoint>>DeletePoints(const QList<TestPoint> &testPoints) const;
+    QList<TestPoint> getTestPointsCSV();
+    QList<TestPoint> getTestPointsGerber();
+    QMap<QString, QList<TestPoint>> groupByNet(const QList<TestPoint> &testPoints) const;
+    QString generateGCode(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const;
+    QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>>divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const;
+    QMap<QString, QList<TestPoint>>prioritizeEdgesAndSingleTracePoints(const QList<TestPoint> &testPoints) const;
 
-    QString generateGcodeFromGerber();
 
 private:
-    QList<TestPoint> testPoints;
-    std::vector<PadInfo> padCoords;
+    QList<TestPoint> testPointsCSV;
+    QList<TestPoint> testPointsGerber;
+    QList<Trace> Traces;
     GerberManager* gerberManager;
-    std::vector<TraceInfo> TraceCoords;
 };
 
 #endif // GCODECONVERTER_H
