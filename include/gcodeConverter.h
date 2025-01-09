@@ -5,6 +5,7 @@
 #include <QString>
 #include <QList>
 #include <QMap>
+#include <cmath>
 
 
 struct TestPoint{
