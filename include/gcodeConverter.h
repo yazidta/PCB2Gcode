@@ -43,6 +43,9 @@ public:
     QString generateGCode(const QMap<QString, QList<TestPoint>> &groupedTestPoints) const;
     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>>divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const;
     QMap<QString, QList<TestPoint>>prioritizeEdgesAndSingleTracePoints(const QList<TestPoint> &testPoints) const;
+    int calculateTotalDistance(const TestPoint& lowerProbePosition,
+                               const TestPoint& upperProbePosition,
+                               const QList<TestPoint>& netTestPoints) const;
 
 
 private:

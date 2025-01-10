@@ -238,9 +238,6 @@ QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideT
             int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
             int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
             int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
-
-
-
             // Handle odd number of points: check closest probe
             if (remainingPoints.size() % 2 != 0) {
                 if (upperProbePoints.last().y < lastPoint.y) {
@@ -254,9 +251,7 @@ QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideT
                 }
             }
             //Divide remaining test points
-/*            for (int i = 0; i < remainingPoints.size(); ++i) {
-                const TestPoint& tp = remainingPoints[i];
-                if (i % 2 == 0)*/ if(remainingPoints.size() % 2 == 0) {
+            if(remainingPoints.size() % 2 == 0) {
                 for (int i = 0; i < remainingPoints.size(); ++i) {
                     const TestPoint& tp = remainingPoints[i];
                     if (upperProbePoints.last().y < tp.y) {
@@ -277,20 +272,20 @@ QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideT
 
     return dividedTestPoints;
 }
+int GCodeConverter::calculateTotalDistance(const TestPoint& lowerProbePosition,
+                                           const TestPoint& upperProbePosition,
+                                           const QList<TestPoint>& netTestPoints) const {
+    if (netTestPoints.size() < 2) {
+        return std::numeric_limits<int>::max(); // Ignore nets with fewer than 2 points
+    }
 
+    int distanceLower = std::abs(lowerProbePosition.x - netTestPoints[0].x) +
+                        std::abs(lowerProbePosition.y - netTestPoints[0].y);
+    int distanceUpper = std::abs(upperProbePosition.x - netTestPoints[1].x) +
+                        std::abs(upperProbePosition.y - netTestPoints[1].y);
 
-
-
-
-
-
-
-
-
-
-
-
-
+    return distanceLower + distanceUpper; // Sum of distances
+}
 
 QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
     QString gCode;
@@ -300,40 +295,80 @@ QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& gro
     // Divide test points between upper and lower probes
     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints = divideTestPointsForProbes(groupedTestPoints);
 
-    for (auto it = dividedTestPoints.begin(); it != dividedTestPoints.end(); ++it) {
-        const QString& net = it.key();
-        const QList<TestPoint>& lowerProbePoints = it.value().second;
-        const QList<TestPoint>& upperProbePoints = it.value().first;
+    QList<QString> remainingNets = dividedTestPoints.keys();
+    QPointF lowerProbePos(0, 0);
+    QPointF upperProbePos(0, 0);
 
-        gCode += QString("; Net: %1\n").arg(net);
+    while (!remainingNets.isEmpty()) {
+        QString selectedNet;
+        qreal minTotalDistance = std::numeric_limits<qreal>::max();
 
-        // Alternate between lower and upper probe movements
-        int lowerIndex = 0;
-        int upperIndex = 0;
-        int maxPoints = std::max(lowerProbePoints.size(), upperProbePoints.size());
+        // Find the net with the least movement cost
+        for (const QString& net : remainingNets) {
+            const QList<TestPoint>& lowerProbePoints = dividedTestPoints[net].second;
+            const QList<TestPoint>& upperProbePoints = dividedTestPoints[net].first;
 
-        for (int i = 0; i < maxPoints; ++i) {
-            if (lowerIndex < lowerProbePoints.size()) {
-                const TestPoint& tp = lowerProbePoints[lowerIndex++];
-                gCode += QString("G01 X%1 Y%2 ; Move to test point (lower probe)\n").arg(tp.x).arg(tp.y);
-                gCode += "G1 Z-1 ; Lower probe\n";
-                gCode += "G1 Z1 ; Raise probe\n";
-                //gCode += "G01 ; Lower probe movement\n";
+            if (lowerProbePoints.isEmpty() || upperProbePoints.isEmpty()) {
+                continue;
             }
 
-            if (upperIndex < upperProbePoints.size()) {
-                const TestPoint& tp = upperProbePoints[upperIndex++];
-                gCode += QString("G02 X%1 Y%2 ; Move to test point (upper probe)\n").arg(tp.x).arg(tp.y);
-                gCode += "G1 Z-1 ; Lower probe\n";
-                gCode += "G1 Z1 ; Raise probe\n";
-               // gCode += "G02 ; Upper probe movement\n";
+            qreal lowerDist = std::hypot(lowerProbePoints.first().x - lowerProbePos.x(), lowerProbePoints.first().y - lowerProbePos.y());
+            qreal upperDist = std::hypot(upperProbePoints.first().x - upperProbePos.x(), upperProbePoints.first().y - upperProbePos.y());
+            qreal totalDist = lowerDist + upperDist;
+
+            if (totalDist < minTotalDistance) {
+                minTotalDistance = totalDist;
+                selectedNet = net;
             }
+        }
+
+        if (!selectedNet.isEmpty()) {
+            const QList<TestPoint>& lowerProbePoints = dividedTestPoints[selectedNet].second;
+            const QList<TestPoint>& upperProbePoints = dividedTestPoints[selectedNet].first;
+
+            gCode += QString("; Net: %1\n").arg(selectedNet);
+
+
+            // Alternate probe movements
+            int lowerIndex = 0, upperIndex = 0;
+            int totalPoints = lowerProbePoints.size() + upperProbePoints.size();
+            for (int i = 0; i < totalPoints; ++i) {
+                if (i % 2 == 0 && lowerIndex < lowerProbePoints.size()) {
+                    const TestPoint& tp = lowerProbePoints[lowerIndex++];
+                    gCode += QString("G0 X%1 Y%2 ; Lower probe move\n").arg(tp.x).arg(tp.y);
+                    gCode += "G1 Z-1 ; Lower probe\n";
+                    gCode += "G1 Z1 ; Raise probe\n";
+                    gCode += "G01 ; Lower probe movement\n";
+                } else if (upperIndex < upperProbePoints.size()) {
+                    const TestPoint& tp = upperProbePoints[upperIndex++];
+                    gCode += QString("G0 X%1 Y%2 ; Upper probe move\n").arg(tp.x).arg(tp.y);
+                    gCode += "G1 Z-1 ; Lower probe\n";
+                    gCode += "G1 Z1 ; Raise probe\n";
+                    gCode += "G02 ; Upper probe movement\n";
+                }
+            }
+
+            // Update probe positions
+            if (!lowerProbePoints.isEmpty()) {
+                lowerProbePos = QPointF(lowerProbePoints.last().x, lowerProbePoints.last().y);
+            }
+            if (!upperProbePoints.isEmpty()) {
+                upperProbePos = QPointF(upperProbePoints.last().x, upperProbePoints.last().y);
+            }
+
+            // Remove the processed net
+            remainingNets.removeOne(selectedNet);
+        } else {
+            break; // No valid nets remain
         }
     }
 
     gCode += "M30 ; End of program\n";
     return gCode;
 }
+
+
+
 
 
 
