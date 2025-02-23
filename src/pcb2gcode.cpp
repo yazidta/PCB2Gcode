@@ -297,7 +297,7 @@ void PCB2Gcode::onGenerateFromGerber(){
         QMessageBox::critical(this, tr("Error"), tr("No pad infromation found."));
         return;
     }
-    QMap<QString, QList<TestPoint>> groupedTestPoints = gcodeConverter->groupByNet(testPoints);
+    QMap<QString, QList<TestPoint>> groupedTestPoints = gcodeConverter->prioritizeEdgesAndSingleTracePoints(testPoints);
     QString gCode = gcodeConverter->generateGCode(groupedTestPoints);
     gerberManager->getTraceCoords();
     QString savePath = QFileDialog::getSaveFileName(this, tr("Save G-Code File"), "", tr("G-Code Files (*.gcode)"));

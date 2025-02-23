@@ -64,10 +64,15 @@ QMap<QString, QList<TestPoint>> GCodeConverter::prioritizeEdgesAndSingleTracePoi
     QMap<QString, QList<TestPoint>> optimized;
 
     auto traces = gerberManager->getTraceCoords(); // Load traces once at the start
-    const double TOLERANCE = 1e-4;
+    const double TOLERANCE = 1e-100;
 
     for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
         const QList<TestPoint> &netTestPoints = it.value();
+
+        if (netTestPoints.size() < 2) {
+            continue;
+        }
+
         QMap<int, TestPoint> pointIndexMap;
         for (int i = 0; i < netTestPoints.size(); ++i) {
             pointIndexMap[i] = netTestPoints[i];
@@ -196,12 +201,148 @@ QMap<QString, QList<TestPoint>> GCodeConverter::prioritizeEdgesAndSingleTracePoi
 
     return optimized;
 }
-QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
+void GCodeConverter::assignPointsByMinimizingLocalMaximum(
+    const TestPoint& probe1, const TestPoint& probe2,
+    const QList<TestPoint>& edgePoints,
+    QList<TestPoint>& upperProbePoints, QList<TestPoint>& lowerProbePoints) const {
+    int distProbe1ToEdge1 = std::abs(sqrt(pow((edgePoints[0].x - probe1.x),2) +
+                            pow((edgePoints[0].y - probe1.y),2)));
+    int distProbe2ToEdge1 = std::abs(sqrt(pow((edgePoints[0].x - probe2.x),2) +
+                            pow((edgePoints[0].y - probe2.y),2)));
+    int distProbe1ToEdge2 = std::abs(sqrt(pow((edgePoints[1].x - probe1.x),2) +
+                            pow((edgePoints[1].y - probe1.y),2)));
+    int distProbe2ToEdge2 = std::abs(sqrt(pow((edgePoints[1].x - probe2.x),2) +
+                            pow((edgePoints[1].y - probe2.y),2)));
+    // Find the local maximum (longest distance)
+    int maxDistance = std::max({distProbe1ToEdge1, distProbe2ToEdge1, distProbe1ToEdge2, distProbe2ToEdge2});
+    // Assign edges to avoid the longest distance
+    if (maxDistance == distProbe1ToEdge1 ){
+        // Avoid assigning edge 1 to probe 1
+        upperProbePoints.append(edgePoints[1]);
+        lowerProbePoints.append(edgePoints[0]);
+        qDebug()<<edgePoints[0].x << "    0   "<< edgePoints[1].x;
+    } else if (maxDistance == distProbe2ToEdge1 || maxDistance == distProbe1ToEdge2) {
+        // Avoid assigning edge 1 to probe 2
+        upperProbePoints.append(edgePoints[0]);
+        lowerProbePoints.append(edgePoints[1]);
+        qDebug()<<edgePoints[0].x << "    0   "<< edgePoints[1].x;
+    } else if (maxDistance == distProbe1ToEdge2){
+        upperProbePoints.append(edgePoints[0]);
+        lowerProbePoints.append(edgePoints[1]);
+    } else if(maxDistance == distProbe2ToEdge2){
+        upperProbePoints.append(edgePoints[1]);
+        lowerProbePoints.append(edgePoints[0]);
+    }
+}
+// QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
+//     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints;
+
+//     for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
+//         const QList<TestPoint>& netTestPoints = it.value();
+
+//         QList<TestPoint> upperProbePoints;
+//         QList<TestPoint> lowerProbePoints;
+//         TestPoint lastUpperProbePosition;
+//         TestPoint lastLowerProbePosition;
+//         if (netTestPoints.size() < 2) {
+//             continue;
+//         }
+
+//         // Prioritize the farthest points within the current net
+//         QList<TestPoint> edgePoints = prioritizeEdgesAndSingleTracePoints(netTestPoints).value(it.key());
+//         if (edgePoints.size() >= 2) {
+//             if (edgePoints[0].y > edgePoints[1].y) {
+//                 upperProbePoints.append(edgePoints[0]);
+//                 lowerProbePoints.append(edgePoints[1]);
+//             } else if(edgePoints[0].y > edgePoints[1].y){
+//                 upperProbePoints.append(edgePoints[1]);
+//                 lowerProbePoints.append(edgePoints[0]);
+//             }
+//             else if(edgePoints[0].y == edgePoints[1].y){
+//                 assignPointsByMinimizingLocalMaximum(
+//                     lastUpperProbePosition, lastLowerProbePosition,
+//                     edgePoints,
+//                     upperProbePoints,lowerProbePoints);
+//             }
+//         }
+
+//         // Collect remaining points excluding the edge points
+//         QList<TestPoint> remainingPoints;
+//         for (const TestPoint& tp : netTestPoints) {
+//             if ((tp.x != edgePoints[0].x || tp.y != edgePoints[0].y) &&
+//                 (tp.x != edgePoints[1].x || tp.y != edgePoints[1].y)) {
+//                 remainingPoints.append(tp);
+//                 qDebug() << tp.x << "     A      " << tp.y;
+//             }
+//         }
+
+//         // Process remaining points only if there are any
+//         if (!remainingPoints.isEmpty()) {
+//             TestPoint lastPoint = remainingPoints.last();
+//             int upperY = std::abs(pow((upperProbePoints.last().y - lastPoint.y), 2));
+//             int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
+//             int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
+//             int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
+//             // Handle odd number of points: check closest probe
+//             if (remainingPoints.size() % 2 != 0) {
+//                 if (upperProbePoints.last().y < lastPoint.y) {
+//                     upperProbePoints.append(lastPoint);
+//                     lowerProbePoints.append(lowerProbePoints.last());
+//                 } else if (lowerProbePoints.last().y > lastPoint.y) {
+//                     lowerProbePoints.append(lastPoint);
+//                     upperProbePoints.append(upperProbePoints.last());
+//                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist < upperDist) {
+//                     lowerProbePoints.append(lastPoint);
+//                     upperProbePoints.append(upperProbePoints.last());
+//                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist > upperDist) {
+//                     upperProbePoints.append(lastPoint);
+//                     lowerProbePoints.append(lowerProbePoints.last());
+//                 }
+//                 else if()
+//             }
+//             //Divide remaining test points
+//             if(remainingPoints.size() % 2 == 0) {
+//                 for (int i = 0; i < remainingPoints.size(); ++i) {
+//                     const TestPoint& tp = remainingPoints[i];
+//                     if (upperProbePoints.last().y < tp.y) {
+//                         upperProbePoints.append(tp);
+//                     } else if (lowerProbePoints.last().y > tp.y) {
+//                         lowerProbePoints.append(tp);
+//                     } else if (upperProbePoints.last().y > tp.y && lowerDist < upperDist) {
+//                         lowerProbePoints.append(tp);
+//                     } else if (upperProbePoints.last().y > tp.y && lowerDist > upperDist) {
+//                         upperProbePoints.append(tp);
+//                     }
+//                 }
+//             }
+//             if (!upperProbePoints.isEmpty()) {
+//                 lastUpperProbePosition = upperProbePoints.last();
+//             }
+//             if (!lowerProbePoints.isEmpty()) {
+//                 lastLowerProbePosition = lowerProbePoints.last();
+//             }
+//         }
+
+//         dividedTestPoints[it.key()] = qMakePair(upperProbePoints, lowerProbePoints);
+//     }
+
+//     return dividedTestPoints;
+// }
+QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>>
+GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
+
     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints;
+
+    // Initialize probe positions
+    TestPoint lastUpperProbePosition; // Upper probe starts at (0, 100)
+    TestPoint lastLowerProbePosition;   // Lower probe starts at (0, 0)
+    lastUpperProbePosition.x = 0;
+    lastUpperProbePosition.y = 100;
+    lastLowerProbePosition.x = 0;
+    lastLowerProbePosition.y = 0;
 
     for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
         const QList<TestPoint>& netTestPoints = it.value();
-
         QList<TestPoint> upperProbePoints;
         QList<TestPoint> lowerProbePoints;
 
@@ -209,10 +350,19 @@ QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideT
             continue;
         }
 
-        // Prioritize the farthest points within the current net
+        // Prioritize and retrieve edge points
         QList<TestPoint> edgePoints = prioritizeEdgesAndSingleTracePoints(netTestPoints).value(it.key());
+
         if (edgePoints.size() >= 2) {
-            if (edgePoints[0].y > edgePoints[1].y) {
+            // If both edge points have the same Y-coordinate, minimize local maximum
+            if (edgePoints[0].y == edgePoints[1].y) {
+                assignPointsByMinimizingLocalMaximum(
+                    lastUpperProbePosition, lastLowerProbePosition,
+                    edgePoints, upperProbePoints, lowerProbePoints
+                    );
+            }
+            // Otherwise, assign based on Y-coordinates
+            else if (edgePoints[0].y > edgePoints[1].y) {
                 upperProbePoints.append(edgePoints[0]);
                 lowerProbePoints.append(edgePoints[1]);
             } else {
@@ -221,61 +371,81 @@ QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideT
             }
         }
 
-        // Collect remaining points excluding the edge points
+        // Collect remaining test points, excluding edge points
         QList<TestPoint> remainingPoints;
         for (const TestPoint& tp : netTestPoints) {
             if ((tp.x != edgePoints[0].x || tp.y != edgePoints[0].y) &&
                 (tp.x != edgePoints[1].x || tp.y != edgePoints[1].y)) {
                 remainingPoints.append(tp);
-                qDebug() << tp.x << "     A      " << tp.y;
             }
         }
 
-        // Process remaining points only if there are any
-        if (!remainingPoints.isEmpty()) {
-            TestPoint lastPoint = remainingPoints.last();
-            int upperY = std::abs(pow((upperProbePoints.last().y - lastPoint.y), 2));
-            int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
-            int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
-            int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
-            // Handle odd number of points: check closest probe
-            if (remainingPoints.size() % 2 != 0) {
-                if (upperProbePoints.last().y < lastPoint.y) {
-                    upperProbePoints.append(lastPoint);
-                    lowerProbePoints.append(lowerProbePoints.last());
-                } else if (lowerProbePoints.last().y > lastPoint.y) {
-                    lowerProbePoints.append(lastPoint);
-                    upperProbePoints.append(upperProbePoints.last());
-                } else if (upperProbePoints.last().y > lastPoint.y && lowerDist < upperDist) {
-                    lowerProbePoints.append(lastPoint);
-                    upperProbePoints.append(upperProbePoints.last());
-                } else if (upperProbePoints.last().y > lastPoint.y && lowerDist > upperDist) {
-                    upperProbePoints.append(lastPoint);
-                    lowerProbePoints.append(lowerProbePoints.last());
-                }
+        // Assign remaining test points to probes
+        for (int i = 0; i < remainingPoints.size(); ++i) {
+            const TestPoint& tp = remainingPoints[i];
+            const TestPoint& nextTp = (i + 1 < remainingPoints.size()) ? remainingPoints[i + 1] : TestPoint{};
+            //int upperY = std::abs(pow((upperProbePoints.last().y - lastPoint.y), 2));
+            //             int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
+            //             int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
+            //             int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
+            int upperDist = std::abs(sqrt(pow(lastUpperProbePosition.y - tp.y,2) +(pow(lastUpperProbePosition.x - tp.x,2))));
+            int lowerDist = std::abs(sqrt(pow(lastLowerProbePosition.y - tp.y,2) + (pow(lastLowerProbePosition.x - tp.x,2))));
+
+            // If two consecutive points have the same Y-coordinate, assign using minimization function
+            if (tp.y == nextTp.y && i + 1 < remainingPoints.size()) {
+                assignPointsByMinimizingLocalMaximum(
+                    lastUpperProbePosition, lastLowerProbePosition,
+                    {tp, nextTp}, upperProbePoints, lowerProbePoints
+                    );
+                i++; // Skip the next point as it was already assigned
+                continue;
             }
-            //Divide remaining test points
-            if(remainingPoints.size() % 2 == 0) {
-                for (int i = 0; i < remainingPoints.size(); ++i) {
-                    const TestPoint& tp = remainingPoints[i];
-                    if (upperProbePoints.last().y < tp.y) {
-                        upperProbePoints.append(tp);
-                    } else if (lowerProbePoints.last().y > tp.y) {
-                        lowerProbePoints.append(tp);
-                    } else if (upperProbePoints.last().y > tp.y && lowerDist < upperDist) {
-                        lowerProbePoints.append(tp);
-                    } else if (upperProbePoints.last().y > tp.y && lowerDist > upperDist) {
-                        upperProbePoints.append(tp);
-                    }
-                }
+            //if (remainingPoints.size() % 2 != 0) {
+                //                 if (upperProbePoints.last().y < lastPoint.y) {
+                //                     upperProbePoints.append(lastPoint);
+                //                     lowerProbePoints.append(lowerProbePoints.last());
+                //                 } else if (lowerProbePoints.last().y > lastPoint.y) {
+                //                     lowerProbePoints.append(lastPoint);
+                //                     upperProbePoints.append(upperProbePoints.last());
+                //                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist < upperDist) {
+                //                     lowerProbePoints.append(lastPoint);
+                //                     upperProbePoints.append(upperProbePoints.last());
+                //                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist > upperDist) {
+                //                     upperProbePoints.append(lastPoint);
+                //                     lowerProbePoints.append(lowerProbePoints.last());
+                //                 }
+                //                 else if()
+                //             }
+
+            // Assign points to the upper or lower probe
+            if (tp.y > lastUpperProbePosition.y) {
+                upperProbePoints.append(tp);
+                lastUpperProbePosition = tp;
+            } else if (tp.y < lastLowerProbePosition.y) {
+                lowerProbePoints.append(tp);
+                lastLowerProbePosition = tp;
+            } else if (lastUpperProbePosition.y > tp.y && lastLowerProbePosition.y < tp.y && upperDist < lowerDist) {
+                upperProbePoints.append(tp);
+                lastUpperProbePosition = tp;
+            } else if(lastUpperProbePosition.y > tp.y && lastLowerProbePosition.y < tp.y && lowerDist > upperDist){
+                lowerProbePoints.append(tp);
+                lastLowerProbePosition = tp;
             }
         }
+        if (upperProbePoints.size() > lowerProbePoints.size()) {
+            lowerProbePoints.append(lowerProbePoints.last()); // Duplicate last lower probe point
+        } else if (lowerProbePoints.size() > upperProbePoints.size()) {
+            upperProbePoints.append(upperProbePoints.last()); // Duplicate last upper probe point
+        }
 
+        // Store the divided test points for the net
         dividedTestPoints[it.key()] = qMakePair(upperProbePoints, lowerProbePoints);
     }
 
     return dividedTestPoints;
 }
+
+
 int GCodeConverter::calculateTotalDistance(const TestPoint& lowerProbePosition,
                                            const TestPoint& upperProbePosition,
                                            const QList<TestPoint>& netTestPoints) const {
@@ -283,10 +453,10 @@ int GCodeConverter::calculateTotalDistance(const TestPoint& lowerProbePosition,
         return std::numeric_limits<int>::max(); // Ignore nets with fewer than 2 points
     }
 
-    int distanceLower = std::abs(lowerProbePosition.x - netTestPoints[0].x) +
-                        std::abs(lowerProbePosition.y - netTestPoints[0].y);
-    int distanceUpper = std::abs(upperProbePosition.x - netTestPoints[1].x) +
-                        std::abs(upperProbePosition.y - netTestPoints[1].y);
+    int distanceLower = std::abs(sqrt(pow(lowerProbePosition.x - netTestPoints[0].x,2) +
+                        pow(lowerProbePosition.y - netTestPoints[0].y,2)));
+    int distanceUpper = std::abs(sqrt(pow(upperProbePosition.x - netTestPoints[0].x,2) +
+                        pow(upperProbePosition.y - netTestPoints[0].y,2)));
 
     return distanceLower + distanceUpper; // Sum of distances
 }
@@ -332,8 +502,10 @@ QString GCodeConverter::selectNextNet(
 QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const
 {
     // Calculate PCB dimensions from the Gerber data.
-    double pcbbWidthMM = gerberManager->maxX - gerberManager->minX;
-    double pcbHeightMM = gerberManager->maxY - gerberManager->minY;
+    double pcbbWidthMM = gerberManager->maxX;
+                         //- gerberManager->minX;
+    double pcbHeightMM = gerberManager->maxY;
+                         //- gerberManager->minY;
     QString gCode;
 
     // Start by outputting a header comment with PCB dimensions.
@@ -347,9 +519,9 @@ QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& gro
     // Prepare a list of nets that still need to be processed.
     QList<QString> remainingNets = dividedTestPoints.keys();
 
-    // Initialize current probe positions. (These might be updated after processing each net.)
+    // Initialize current probe positions. (These will be updated after processing each net.)
     QPointF lowerProbePos(0, 0);
-    QPointF upperProbePos(0, 0);
+    QPointF upperProbePos(0, 100);
 
     // Process nets until there are none left.
     while (!remainingNets.isEmpty()) {

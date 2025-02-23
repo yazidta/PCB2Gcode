@@ -51,7 +51,10 @@ public:
                            const QList<QString>& remainingNets,
                            const QPointF& lowerProbePos,
                            const QPointF& upperProbePos) const;
-
+    void assignPointsByMinimizingLocalMaximum(
+    const TestPoint& probe1, const TestPoint& probe2,
+    const QList<TestPoint>& edgePoints,
+        QList<TestPoint>& upperProbePoints, QList<TestPoint>& lowerProbePoints) const;
 
 private:
     QList<TestPoint> testPointsCSV;
