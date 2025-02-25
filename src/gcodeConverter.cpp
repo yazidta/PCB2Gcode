@@ -64,7 +64,7 @@ QMap<QString, QList<TestPoint>> GCodeConverter::prioritizeEdgesAndSingleTracePoi
     QMap<QString, QList<TestPoint>> optimized;
 
     auto traces = gerberManager->getTraceCoords(); // Load traces once at the start
-    const double TOLERANCE = 1e-100;
+    const double TOLERANCE = 1e-9;
 
     for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
         const QList<TestPoint> &netTestPoints = it.value();
@@ -234,110 +234,18 @@ void GCodeConverter::assignPointsByMinimizingLocalMaximum(
         lowerProbePoints.append(edgePoints[0]);
     }
 }
-// QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
-//     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints;
 
-//     for (auto it = groupedTestPoints.begin(); it != groupedTestPoints.end(); ++it) {
-//         const QList<TestPoint>& netTestPoints = it.value();
-
-//         QList<TestPoint> upperProbePoints;
-//         QList<TestPoint> lowerProbePoints;
-//         TestPoint lastUpperProbePosition;
-//         TestPoint lastLowerProbePosition;
-//         if (netTestPoints.size() < 2) {
-//             continue;
-//         }
-
-//         // Prioritize the farthest points within the current net
-//         QList<TestPoint> edgePoints = prioritizeEdgesAndSingleTracePoints(netTestPoints).value(it.key());
-//         if (edgePoints.size() >= 2) {
-//             if (edgePoints[0].y > edgePoints[1].y) {
-//                 upperProbePoints.append(edgePoints[0]);
-//                 lowerProbePoints.append(edgePoints[1]);
-//             } else if(edgePoints[0].y > edgePoints[1].y){
-//                 upperProbePoints.append(edgePoints[1]);
-//                 lowerProbePoints.append(edgePoints[0]);
-//             }
-//             else if(edgePoints[0].y == edgePoints[1].y){
-//                 assignPointsByMinimizingLocalMaximum(
-//                     lastUpperProbePosition, lastLowerProbePosition,
-//                     edgePoints,
-//                     upperProbePoints,lowerProbePoints);
-//             }
-//         }
-
-//         // Collect remaining points excluding the edge points
-//         QList<TestPoint> remainingPoints;
-//         for (const TestPoint& tp : netTestPoints) {
-//             if ((tp.x != edgePoints[0].x || tp.y != edgePoints[0].y) &&
-//                 (tp.x != edgePoints[1].x || tp.y != edgePoints[1].y)) {
-//                 remainingPoints.append(tp);
-//                 qDebug() << tp.x << "     A      " << tp.y;
-//             }
-//         }
-
-//         // Process remaining points only if there are any
-//         if (!remainingPoints.isEmpty()) {
-//             TestPoint lastPoint = remainingPoints.last();
-//             int upperY = std::abs(pow((upperProbePoints.last().y - lastPoint.y), 2));
-//             int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
-//             int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
-//             int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
-//             // Handle odd number of points: check closest probe
-//             if (remainingPoints.size() % 2 != 0) {
-//                 if (upperProbePoints.last().y < lastPoint.y) {
-//                     upperProbePoints.append(lastPoint);
-//                     lowerProbePoints.append(lowerProbePoints.last());
-//                 } else if (lowerProbePoints.last().y > lastPoint.y) {
-//                     lowerProbePoints.append(lastPoint);
-//                     upperProbePoints.append(upperProbePoints.last());
-//                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist < upperDist) {
-//                     lowerProbePoints.append(lastPoint);
-//                     upperProbePoints.append(upperProbePoints.last());
-//                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist > upperDist) {
-//                     upperProbePoints.append(lastPoint);
-//                     lowerProbePoints.append(lowerProbePoints.last());
-//                 }
-//                 else if()
-//             }
-//             //Divide remaining test points
-//             if(remainingPoints.size() % 2 == 0) {
-//                 for (int i = 0; i < remainingPoints.size(); ++i) {
-//                     const TestPoint& tp = remainingPoints[i];
-//                     if (upperProbePoints.last().y < tp.y) {
-//                         upperProbePoints.append(tp);
-//                     } else if (lowerProbePoints.last().y > tp.y) {
-//                         lowerProbePoints.append(tp);
-//                     } else if (upperProbePoints.last().y > tp.y && lowerDist < upperDist) {
-//                         lowerProbePoints.append(tp);
-//                     } else if (upperProbePoints.last().y > tp.y && lowerDist > upperDist) {
-//                         upperProbePoints.append(tp);
-//                     }
-//                 }
-//             }
-//             if (!upperProbePoints.isEmpty()) {
-//                 lastUpperProbePosition = upperProbePoints.last();
-//             }
-//             if (!lowerProbePoints.isEmpty()) {
-//                 lastLowerProbePosition = lowerProbePoints.last();
-//             }
-//         }
-
-//         dividedTestPoints[it.key()] = qMakePair(upperProbePoints, lowerProbePoints);
-//     }
-
-//     return dividedTestPoints;
-// }
 QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>>
 GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const {
 
     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints;
+    gerberManager->getBoundingBox();
 
     // Initialize probe positions
     TestPoint lastUpperProbePosition; // Upper probe starts at (0, 100)
     TestPoint lastLowerProbePosition;   // Lower probe starts at (0, 0)
     lastUpperProbePosition.x = 0;
-    lastUpperProbePosition.y = 100;
+    lastUpperProbePosition.y = gerberManager->maxY;
     lastLowerProbePosition.x = 0;
     lastLowerProbePosition.y = 0;
 
@@ -384,10 +292,7 @@ GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>&
         for (int i = 0; i < remainingPoints.size(); ++i) {
             const TestPoint& tp = remainingPoints[i];
             const TestPoint& nextTp = (i + 1 < remainingPoints.size()) ? remainingPoints[i + 1] : TestPoint{};
-            //int upperY = std::abs(pow((upperProbePoints.last().y - lastPoint.y), 2));
-            //             int lowerY = std::abs(pow(lowerProbePoints.last().y - lastPoint.y, 2));
-            //             int upperDist = std::abs(sqrt(upperY + pow((upperProbePoints.last().x - lastPoint.x), 2)));
-            //             int lowerDist = std::abs(sqrt(lowerY + pow((lowerProbePoints.last().x - lastPoint.x), 2)));
+
             int upperDist = std::abs(sqrt(pow(lastUpperProbePosition.y - tp.y,2) +(pow(lastUpperProbePosition.x - tp.x,2))));
             int lowerDist = std::abs(sqrt(pow(lastLowerProbePosition.y - tp.y,2) + (pow(lastLowerProbePosition.x - tp.x,2))));
 
@@ -400,22 +305,7 @@ GCodeConverter::divideTestPointsForProbes(const QMap<QString, QList<TestPoint>>&
                 i++; // Skip the next point as it was already assigned
                 continue;
             }
-            //if (remainingPoints.size() % 2 != 0) {
-                //                 if (upperProbePoints.last().y < lastPoint.y) {
-                //                     upperProbePoints.append(lastPoint);
-                //                     lowerProbePoints.append(lowerProbePoints.last());
-                //                 } else if (lowerProbePoints.last().y > lastPoint.y) {
-                //                     lowerProbePoints.append(lastPoint);
-                //                     upperProbePoints.append(upperProbePoints.last());
-                //                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist < upperDist) {
-                //                     lowerProbePoints.append(lastPoint);
-                //                     upperProbePoints.append(upperProbePoints.last());
-                //                 } else if (upperProbePoints.last().y > lastPoint.y && lowerDist > upperDist) {
-                //                     upperProbePoints.append(lastPoint);
-                //                     lowerProbePoints.append(lowerProbePoints.last());
-                //                 }
-                //                 else if()
-                //             }
+
 
             // Assign points to the upper or lower probe
             if (tp.y > lastUpperProbePosition.y) {
@@ -502,18 +392,18 @@ QString GCodeConverter::selectNextNet(
 QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& groupedTestPoints) const
 {
     // Calculate PCB dimensions from the Gerber data.
-    double pcbbWidthMM = gerberManager->maxX;
-                         //- gerberManager->minX;
-    double pcbHeightMM = gerberManager->maxY;
-                         //- gerberManager->minY;
+    gerberManager->getBoundingBox();
+
+    double pcbbWidthMM = gerberManager->maxX
+                         - gerberManager->minX;
+    double pcbHeightMM = gerberManager->maxY
+                         - gerberManager->minY;
     QString gCode;
 
     // Start by outputting a header comment with PCB dimensions.
     gCode += QString("; G54 X%1 Y%2\n\n\n\n").arg(pcbbWidthMM).arg(pcbHeightMM);
 
     // Divide the test points for each net between the upper and lower probes.
-    // (Assumes that divideTestPointsForProbes() returns a QMap where the key is the net name and
-    //  the value is a QPair: [upperProbePoints, lowerProbePoints].)
     QMap<QString, QPair<QList<TestPoint>, QList<TestPoint>>> dividedTestPoints = divideTestPointsForProbes(groupedTestPoints);
 
     // Prepare a list of nets that still need to be processed.
@@ -521,7 +411,7 @@ QString GCodeConverter::generateGCode(const QMap<QString, QList<TestPoint>>& gro
 
     // Initialize current probe positions. (These will be updated after processing each net.)
     QPointF lowerProbePos(0, 0);
-    QPointF upperProbePos(0, 100);
+    QPointF upperProbePos(0, pcbHeightMM);
 
     // Process nets until there are none left.
     while (!remainingNets.isEmpty()) {
